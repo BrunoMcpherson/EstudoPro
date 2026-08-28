@@ -23,7 +23,7 @@ let dadosEstudo = {
     ofensiva: { dias: 0, ultimaData: null }, questoesGerais: { acertos: 0, erros: 0 },
     historicoDias: {}, intervalosRevisao: [1, 7, 30], pdfs: [], concursos: [], concursoAtivo: null,
     perfil: { nome: "", idade: "", telefone: "", email: "" },
-    configRevisaoAuto: true // Nova configuração
+    configRevisaoAuto: true
 };
 
 let chartGeral = null, chartMaterias = null, chartEvolucao = null, chartTempoMat = null;
@@ -38,7 +38,7 @@ function validarEstruturaDados() {
     dadosEstudo.concursos = dadosEstudo.concursos || []; dadosEstudo.materias = dadosEstudo.materias || []; dadosEstudo.revisoes = dadosEstudo.revisoes || []; dadosEstudo.pdfs = dadosEstudo.pdfs || [];
     dadosEstudo.historicoDias = dadosEstudo.historicoDias || {}; dadosEstudo.intervalosRevisao = dadosEstudo.intervalosRevisao || [1, 7, 30];
     dadosEstudo.ofensiva = dadosEstudo.ofensiva || { dias: 0, ultimaData: null }; dadosEstudo.questoesGerais = dadosEstudo.questoesGerais || { acertos: 0, erros: 0 };
-    if(dadosEstudo.configRevisaoAuto === undefined) dadosEstudo.configRevisaoAuto = true; // Garante o fallback
+    if(dadosEstudo.configRevisaoAuto === undefined) dadosEstudo.configRevisaoAuto = true;
     if(dadosEstudo.concurso && dadosEstudo.concurso.nome) { const idNovo = Date.now(); dadosEstudo.concursos.push({ id: idNovo, nome: dadosEstudo.concurso.nome, data: dadosEstudo.concurso.data }); dadosEstudo.concursoAtivo = idNovo; delete dadosEstudo.concurso; salvarLocal(false); }
 }
 
@@ -94,7 +94,6 @@ function salvarTempoManual() {
     document.getElementById('manual-horas').value = ''; document.getElementById('manual-minutos').value = ''; alert(`Salvo: ${horas}h e ${minutos}m`);
 }
 
-// POMODORO TOTALMENTE REESCRITO (Imune ao Throttling de Aba)
 let pomoTempoRestante = 25 * 60; let pomoInterval; let pomoRodando = false; let pomoEmFoco = true; let dataAlvoPomo = null;
 function aplicarConfigPomo() { if(!pomoRodando) { pomoTempoRestante = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; atualizarDisplayPomo(); } }
 function atualizarDisplayPomo() { let m = Math.floor(pomoTempoRestante / 60).toString().padStart(2, '0'); let s = (pomoTempoRestante % 60).toString().padStart(2, '0'); document.getElementById('display-pomo').innerText = `${m}:${s}`; }
@@ -107,7 +106,7 @@ function iniciarPomodoro(isFoco) {
     pomoEmFoco = isFoco; const tFoco = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; const tPausa = (parseInt(document.getElementById('cfg-pomo-pausa').value) || 5) * 60;
     if(pomoTempoRestante === 0 || (pomoTempoRestante === tFoco) || (pomoTempoRestante === tPausa)) { pomoTempoRestante = isFoco ? tFoco : tPausa; }
     
-    dataAlvoPomo = Date.now() + (pomoTempoRestante * 1000); // Salva o tempo real no relógio do PC
+    dataAlvoPomo = Date.now() + (pomoTempoRestante * 1000); 
     pomoRodando = true; 
     
     pomoInterval = setInterval(() => {
@@ -123,7 +122,6 @@ function iniciarPomodoro(isFoco) {
 function pausarPomodoroTimer() { clearInterval(pomoInterval); pomoRodando = false; }
 function pararPomodoro() { clearInterval(pomoInterval); pomoRodando = false; pomoTempoRestante = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; atualizarDisplayPomo(); }
 
-// CRONÔMETRO REESCRITO
 let cronoSegundos = 0; let cronoInterval; let cronoRodando = false; let dataInicioCrono = null;
 function atualizarDisplayCrono() { let h = Math.floor(cronoSegundos / 3600).toString().padStart(2, '0'); let m = Math.floor((cronoSegundos % 3600) / 60).toString().padStart(2, '0'); let s = (cronoSegundos % 60).toString().padStart(2, '0'); document.getElementById('display-crono').innerText = `${h}:${m}:${s}`; }
 function iniciarCrono() { 
@@ -148,16 +146,9 @@ function resetarCalendario() { if(confirm("Limpar visual do calendário?")) { da
 function adicionarMateriaEmMassa() { const nome = document.getElementById('nova-materia').value.trim(); const texto = document.getElementById('texto-edital').value; if (!nome) return alert("Digite o nome da matéria!"); const linhas = texto.split(/\n|,|\.\s/).map(l => l.trim()).filter(l => l !== ""); const subtemas = linhas.map(l => ({ nome: l, concluido: false })); dadosEstudo.materias.push({ nome, subtemas, questoes: { acertos: 0, erros: 0 }, tempo: 0, expandido: true }); document.getElementById('nova-materia').value = ""; document.getElementById('texto-edital').value = ""; salvarLocal(true); }
 function adicionarSubtema(i) { const inp = document.getElementById(`novo-subtema-${i}`); if (inp.value.trim()) { dadosEstudo.materias[i].subtemas.push({ nome: inp.value.trim(), concluido: false }); inp.value = ""; salvarLocal(false); } }
 
-// NOVA LÓGICA DE AUTO REVISÃO
 function toggleRevisaoAuto() { dadosEstudo.configRevisaoAuto = document.getElementById('check-rev-auto').checked; salvarLocal(false); }
-function alternarConclusao(iMat, iSub) { 
-    const sub = dadosEstudo.materias[iMat].subtemas[iSub]; sub.concluido = !sub.concluido; 
-    if (sub.concluido) { if(dadosEstudo.configRevisaoAuto) { agendarRevisoes(dadosEstudo.materias[iMat].nome, sub.nome); } registrarAtividade(0,0,0,0); } 
-    salvarLocal(false); 
-}
-
+function alternarConclusao(iMat, iSub) { const sub = dadosEstudo.materias[iMat].subtemas[iSub]; sub.concluido = !sub.concluido; if (sub.concluido) { if(dadosEstudo.configRevisaoAuto) { agendarRevisoes(dadosEstudo.materias[iMat].nome, sub.nome); } registrarAtividade(0,0,0,0); } salvarLocal(false); }
 function deletarMateria(i) { if (confirm("Excluir matéria e todo seu histórico?")) { let mat = dadosEstudo.materias[i]; if(mat.questoes) { dadosEstudo.questoesGerais.acertos = Math.max(0, dadosEstudo.questoesGerais.acertos - mat.questoes.acertos); dadosEstudo.questoesGerais.erros = Math.max(0, dadosEstudo.questoesGerais.erros - mat.questoes.erros); } if(mat.tempo) dadosEstudo.tempoTotal = Math.max(0, dadosEstudo.tempoTotal - mat.tempo); dadosEstudo.materias.splice(i, 1); salvarLocal(true); } }
-// NOVA FUNÇÃO: DELETAR SUBTÓPICO INDIVIDUAL
 function deletarSubtema(iMat, iSub) { if (confirm("Excluir este tópico específico?")) { dadosEstudo.materias[iMat].subtemas.splice(iSub, 1); salvarLocal(false); } }
 function alternarExpandirMateria(iMat) { if(dadosEstudo.materias[iMat].expandido === undefined) dadosEstudo.materias[iMat].expandido = true; dadosEstudo.materias[iMat].expandido = !dadosEstudo.materias[iMat].expandido; salvarLocal(false); }
 
@@ -203,22 +194,85 @@ function renderizarTabelasEListas() {
 }
 
 function atualizarGraficos() {
-    let totQ = dadosEstudo.questoesGerais.acertos + dadosEstudo.questoesGerais.erros; if(chartGeral) chartGeral.destroy(); chartGeral = new Chart(document.getElementById('graficoGeral').getContext('2d'), { type: 'doughnut', data: { labels: totQ>0?['Acertos', 'Erros']:['Sem Dados'], datasets: [{ data: totQ>0?[dadosEstudo.questoesGerais.acertos, dadosEstudo.questoesGerais.erros]:[1], backgroundColor: totQ>0?['#10b981', '#ef4444']:['#e5e7eb'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { enabled: totQ>0 } } } });
+    let totQ = dadosEstudo.questoesGerais.acertos + dadosEstudo.questoesGerais.erros; 
+    if(chartGeral) chartGeral.destroy(); 
+    chartGeral = new Chart(document.getElementById('graficoGeral').getContext('2d'), { 
+        type: 'doughnut', 
+        data: { labels: totQ>0?['Acertos', 'Erros']:['Sem Dados'], datasets: [{ data: totQ>0?[dadosEstudo.questoesGerais.acertos, dadosEstudo.questoesGerais.erros]:[1], backgroundColor: totQ>0?['#10b981', '#ef4444']:['#e5e7eb'], borderWidth: 0 }] }, 
+        options: { 
+            responsive: true, maintainAspectRatio: false, cutout: '70%', 
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { enabled: totQ>0, callbacks: { label: function(context) { return ' ' + context.label + ': ' + context.parsed + ' questões'; } } } 
+            } 
+        } 
+    });
+
     const labelsM = [], dadosM = [], coresM = [], labelsT = [], dadosT = [];
     dadosEstudo.materias.forEach(m => { 
-        // Correção do BUG DE NOME CORTADO NOS GRÁFICOS
         const nomeGrafico = m.nome.length > 20 ? m.nome.substring(0, 20) + '...' : m.nome;
-        
         if(m.questoes && (m.questoes.acertos > 0 || m.questoes.erros > 0)) { labelsM.push(nomeGrafico); const pct = Math.round((m.questoes.acertos / (m.questoes.acertos + m.questoes.erros)) * 100); dadosM.push(pct); coresM.push(pct >= 80 ? '#10b981' : (pct >= 60 ? '#f59e0b' : '#ef4444')); } 
         if(m.tempo && m.tempo > 0) { labelsT.push(nomeGrafico); dadosT.push((m.tempo / 60).toFixed(1)); } 
     });
-    if(chartMaterias) chartMaterias.destroy(); chartMaterias = new Chart(document.getElementById('graficoMaterias').getContext('2d'), { type: 'bar', data: { labels: labelsM.length > 0 ? labelsM : ['-'], datasets: [{ data: dadosM.length > 0 ? dadosM : [0], backgroundColor: coresM.length > 0 ? coresM : ['#e5e7eb'], borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } }, plugins: { legend: { display: false } } } });
-    if(chartTempoMat) chartTempoMat.destroy(); chartTempoMat = new Chart(document.getElementById('graficoTempoMateria').getContext('2d'), { type: 'bar', data: { labels: labelsT.length > 0 ? labelsT : ['-'], datasets: [{ label: 'Horas', data: dadosT.length > 0 ? dadosT : [0], backgroundColor: '#4f46e5', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
+
+    if(chartMaterias) chartMaterias.destroy(); 
+    chartMaterias = new Chart(document.getElementById('graficoMaterias').getContext('2d'), { 
+        type: 'bar', 
+        data: { labels: labelsM.length > 0 ? labelsM : ['-'], datasets: [{ data: dadosM.length > 0 ? dadosM : [0], backgroundColor: coresM.length > 0 ? coresM : ['#e5e7eb'], borderRadius: 4 }] }, 
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return ' Aproveitamento: ' + context.parsed.y + '%'; } } } } } 
+    });
+
+    if(chartTempoMat) chartTempoMat.destroy(); 
+    chartTempoMat = new Chart(document.getElementById('graficoTempoMateria').getContext('2d'), { 
+        type: 'bar', 
+        data: { labels: labelsT.length > 0 ? labelsT : ['-'], datasets: [{ label: 'Horas', data: dadosT.length > 0 ? dadosT : [0], backgroundColor: '#4f46e5', borderRadius: 4 }] }, 
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return ' Tempo: ' + context.parsed.y + ' hora(s)'; } } } } } 
+    });
     
     const evoLabels = []; const evoMin = []; const evoQtd = [];
     for(let i=6; i>=0; i--) { let d = new Date(); d.setDate(d.getDate() - i); let dStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); evoLabels.push(`${d.getDate()}/${d.getMonth()+1}`); let h = dadosEstudo.historicoDias[dStr] || { minutos:0, acertos:0, erros:0 }; evoMin.push(h.minutos); evoQtd.push(h.acertos + h.erros); }
-    if(chartEvolucao) chartEvolucao.destroy(); chartEvolucao = new Chart(document.getElementById('graficoEvolucao').getContext('2d'), { type: 'line', data: { labels: evoLabels, datasets: [ { label: 'Minutos Estudados', data: evoMin, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3 }, { label: 'Questões', data: evoQtd, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3 } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { position: 'top' } } } });
+    if(chartEvolucao) chartEvolucao.destroy(); chartEvolucao = new Chart(document.getElementById('graficoEvolucao').getContext('2d'), { 
+        type: 'line', 
+        data: { labels: evoLabels, datasets: [ { label: 'Minutos Estudados', data: evoMin, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3 }, { label: 'Questões', data: evoQtd, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3 } ] }, 
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { position: 'top' } } } 
+    });
 }
 function atualizarInterface() { renderizarTopBar(); renderizarTabelasEListas(); renderizarEdital(); renderizarRevisoes(); }
 
-window.alternarAuth = alternarAuth; window.fazerLogin = fazerLogin; window.criarConta = criarConta; window.sairConta = sairConta; window.aplicarConfigPomo = aplicarConfigPomo; window.iniciarPomodoro = iniciarPomodoro; window.pausarPomodoroTimer = pausarPomodoroTimer; window.pararPomodoro = pararPomodoro; window.iniciarCrono = iniciarCrono; window.pausarCrono = pausarCrono; window.pararESalvarCrono = pararESalvarCrono; window.mudarAbaTempo = mudarAbaTempo; window.salvarTempoManual = salvarTempoManual; window.resetarPaginas = resetarPaginas; window.resetarQuestoes = resetarQuestoes; window.resetarTempo = resetarTempo; window.resetarPomodoros = resetarPomodoros; window.resetarCalendario = resetarCalendario; window.adicionarMateriaEmMassa = adicionarMateriaEmMassa; window.adicionarSubtema = adicionarSubtema; window.alternarConclusao = alternarConclusao; window.deletarMateria = deletarMateria; window.deletarSubtema = deletarSubtema; window.alternarExpandirMateria = alternarExpandirMateria; window.adicionarPdf = adicionarPdf; window.atualizarLeituraPdf = atualizarLeituraPdf; window.deletarPdf = deletarPdf; window.salvarQuestoes = salvarQuestoes; window.salvarConfigRevisoes = salvarConfigRevisoes; window.concluirRevisao = concluirRevisao; window.excluirRevisao = excluirRevisao; window.mostrarFormConcurso = mostrarFormConcurso; window.esconderFormConcurso = esconderFormConcurso; window.adicionarConcurso = adicionarConcurso; window.mudarConcursoAtivo = mudarConcursoAtivo; window.deletarConcursoAtivo = deletarConcursoAtivo; window.toggleRevisaoAuto = toggleRevisaoAuto;
+window.alternarAuth = alternarAuth; 
+window.fazerLogin = fazerLogin; 
+window.criarConta = criarConta; 
+window.sairConta = sairConta; 
+window.aplicarConfigPomo = aplicarConfigPomo; 
+window.iniciarPomodoro = iniciarPomodoro; 
+window.pausarPomodoroTimer = pausarPomodoroTimer; 
+window.pararPomodoro = pararPomodoro; 
+window.iniciarCrono = iniciarCrono; 
+window.pausarCrono = pausarCrono; 
+window.pararESalvarCrono = pararESalvarCrono; 
+window.mudarAbaTempo = mudarAbaTempo; 
+window.salvarTempoManual = salvarTempoManual; 
+window.resetarPaginas = resetarPaginas; 
+window.resetarQuestoes = resetarQuestoes; 
+window.resetarTempo = resetarTempo; 
+window.resetarPomodoros = resetarPomodoros; 
+window.resetarCalendario = resetarCalendario; 
+window.adicionarMateriaEmMassa = adicionarMateriaEmMassa; 
+window.adicionarSubtema = adicionarSubtema; 
+window.alternarConclusao = alternarConclusao; 
+window.deletarMateria = deletarMateria; 
+window.deletarSubtema = deletarSubtema; 
+window.alternarExpandirMateria = alternarExpandirMateria; 
+window.adicionarPdf = adicionarPdf; 
+window.atualizarLeituraPdf = atualizarLeituraPdf; 
+window.deletarPdf = deletarPdf; 
+window.salvarQuestoes = salvarQuestoes; 
+window.salvarConfigRevisoes = salvarConfigRevisoes; 
+window.concluirRevisao = concluirRevisao; 
+window.excluirRevisao = excluirRevisao; 
+window.mostrarFormConcurso = mostrarFormConcurso; 
+window.esconderFormConcurso = esconderFormConcurso; 
+window.adicionarConcurso = adicionarConcurso; 
+window.mudarConcursoAtivo = mudarConcursoAtivo; 
+window.deletarConcursoAtivo = deletarConcursoAtivo; 
+window.toggleRevisaoAuto = toggleRevisaoAuto;

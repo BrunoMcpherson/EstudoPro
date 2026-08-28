@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EstudoPro</title>
+    <!-- Ícone Capelo Roxo -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath fill='%234f46e5' d='M320 32L64 160l256 128 256-128L320 32zm0 256L128 224v128c0 53 86 96 192 96s192-43 192-96V224L320 288z'/%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -96,7 +97,6 @@
                 <div class="glass p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
                     <div class="mb-4 text-left">
                         <label class="text-xs font-bold text-gray-500 uppercase">Matéria Atual (Obrigatória):</label>
-                        <!-- A OPÇÃO GERAL FOI REMOVIDA -->
                         <select id="select-materia-tempo" class="w-full p-2 border rounded-lg bg-gray-50 font-bold text-gray-700 mt-1 focus:ring-2 focus:ring-indigo-500"></select>
                     </div>
                     <div class="flex justify-center gap-4 border-b mb-4 pb-2">
@@ -112,11 +112,27 @@
                             <div>Pausa(min): <input type="number" id="cfg-pomo-pausa" value="5" class="w-12 text-center border rounded p-1 ml-1 text-green-600"></div>
                         </div>
                         <div class="text-6xl font-black text-indigo-600 mb-4 font-mono tracking-wider" id="display-pomo">25:00</div>
+                        
+                        <!-- BOTÕES DO POMODORO COM POP-UPS (TOOLTIPS) -->
                         <div class="flex justify-center gap-2 mb-2">
-                            <!-- BOTÕES CORRIGIDOS -->
-                            <button onclick="iniciarPomodoro(true)" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold w-1/3">Focar</button>
-                            <button onclick="pausarPomodoroTimer()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold w-1/3 text-sm">Pausar</button>
-                            <button onclick="iniciarPomodoro(false)" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold w-1/3 text-sm">Descansar</button>
+                            <div class="group relative w-1/3 flex justify-center">
+                                <button onclick="iniciarPomodoro(true)" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold w-full">Focar</button>
+                                <span class="absolute bottom-full mb-2 hidden group-hover:block w-max max-w-[200px] bg-gray-800 text-white text-xs rounded py-1 px-2 shadow-lg z-50 text-center">
+                                    Inicia o tempo de estudo focado para a matéria selecionada.
+                                </span>
+                            </div>
+                            <div class="group relative w-1/3 flex justify-center">
+                                <button onclick="pausarPomodoroTimer()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold w-full text-sm">Pausar</button>
+                                <span class="absolute bottom-full mb-2 hidden group-hover:block w-max max-w-[200px] bg-gray-800 text-white text-xs rounded py-1 px-2 shadow-lg z-50 text-center">
+                                    Congela o tempo atual caso precise de uma interrupção rápida.
+                                </span>
+                            </div>
+                            <div class="group relative w-1/3 flex justify-center">
+                                <button onclick="iniciarPomodoro(false)" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold w-full text-sm">Descansar</button>
+                                <span class="absolute bottom-full mb-2 hidden group-hover:block w-max max-w-[200px] bg-gray-800 text-white text-xs rounded py-1 px-2 shadow-lg z-50 text-center">
+                                    Inicia a contagem regressiva para o seu intervalo.
+                                </span>
+                            </div>
                         </div>
                         <button onclick="pararPomodoro()" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg font-bold w-full text-sm">Parar/Resetar</button>
                     </div>
@@ -175,7 +191,6 @@
                     <div class="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-2">
                         <h2 class="text-lg font-bold text-orange-700"><i class="fa-solid fa-clock-rotate-left mr-2"></i> Revisões Pendentes</h2>
                         <div class="flex items-center gap-4">
-                            <!-- CHECKBOX DE REVISÃO AUTOMÁTICA -->
                             <label class="text-xs font-bold text-gray-600 flex items-center gap-1 cursor-pointer">
                                 <input type="checkbox" id="check-rev-auto" onchange="toggleRevisaoAuto()" class="w-4 h-4 text-orange-500 rounded focus:ring-orange-400"> Agendar Auto.
                             </label>
