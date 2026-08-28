@@ -1,42 +1,66 @@
-# 🎓 EstudoPro
+# 🎯 EstudoPro (v2.0)
 
-> Uma plataforma completa (SaaS) de gestão de estudos, produtividade e análise de desempenho, focada em estudantes e concurseiros de alto rendimento.
+O **EstudoPro** é uma plataforma Web (SaaS) completa e responsiva desenvolvida para otimizar a preparação de estudantes e concurseiros. Ele centraliza a gestão de tempo, controle de editais, métricas de desempenho, agendamento de revisões espaçadas e, agora, a criação de materiais de estudo ativos.
 
-![Status](https://img.shields.io/badge/Status-Conclu%C3%ADdo-brightgreen)
-![Versão](https://img.shields.io/badge/Vers%C3%A3o-1.0%20Nuvem-blue)
-![Firebase](https://img.shields.io/badge/Firebase-Database%20%26%20Auth-orange)
+## 🚀 O que há de novo na Versão 2.0?
 
-## 💻 Sobre o Projeto
-O **EstudoPro** nasceu da necessidade de unificar diversas ferramentas de estudos em um único lugar. O projeto evoluiu de um simples controlador de tempo local para uma aplicação web em nuvem completa, contando com autenticação de usuários, sincronização de dados em tempo real e arquitetura modular.
+A versão 2.0 transforma o EstudoPro em um verdadeiro "caderno inteligente", focado em usabilidade (UX) e estabilidade de longo prazo:
 
-A aplicação permite que o usuário gerencie editais, acompanhe sua ofensiva de estudos, controle materiais (PDFs), contabilize horas via Pomodoro/Cronômetro e tenha uma visão clara do seu desempenho através de painéis gráficos inteligentes.
+* 🌗 **Modo Noturno Nativo:** Alternância suave entre temas Claro e Escuro, salvando a preferência do usuário na nuvem para evitar fadiga visual.
+* 🧠 **Área "Meus Materiais":** Nova interface (Single Page Application) dedicada à criação de materiais de revisão.
+* 📇 **Flashcards 3D:** Criação de cartões de pergunta/resposta com animação de giro tridimensional (Flip).
+* 📓 **Resumos Estruturados:** Editor de cadernos virtuais para salvar anotações atreladas diretamente às matérias do edital.
+* 📱 **Layouts Dinâmicos (Grid/Lista):** Alternância de visualização dos materiais entre grade e lista compacta (salvo na nuvem).
+* ⏱️ **Timer Imparável (Anti-Throttling):** Cronômetro e Pomodoro reescritos com base em `Date.now()`, tornando-os imunes ao congelamento de abas inativas de navegadores (Chrome/Edge).
+* ⏳ **Registro Manual de Tempo:** Inserção de horas estudadas fora do aplicativo.
+* 🗑️ **Exclusão Granular:** Agora é possível excluir tópicos individuais do edital, sem precisar apagar a matéria inteira.
+* 📊 **Gráficos e UX Aprimorados:** Títulos dinâmicos, correção de truncamento de texto, legendas personalizadas no *hover* (Chart.js) e Pop-ups (Tooltips) explicativos nos botões.
+* ⚙️ **Revisões Customizáveis:** Novo *toggle* para ligar ou desligar o agendamento automático de revisões ao concluir um tópico.
 
-## ✨ Principais Funcionalidades
+---
 
-- **🔒 Autenticação em Nuvem:** Sistema de Login e Cadastro (E-mail/Senha) utilizando Firebase Auth, com proteção e isolamento de dados por usuário.
-- **⏱️ Gestão de Tempo Dupla:** Temporizador Pomodoro configurável e Cronômetro Livre. Os tempos são convertidos e atrelados automaticamente à matéria estudada.
-- **📊 Dashboard e Gráficos:** Integração com `Chart.js` para visualização de desempenho global, aproveitamento por matéria e evolução diária (Últimos 7 dias).
-- **📅 Calendário Heatmap:** Mapeamento visual de constância diária (estilo "Commits do GitHub") que registra tempo, questões e páginas lidas por dia.
-- **🔥 Sistema de Ofensiva (Streak):** Gamificação inteligente que contabiliza dias seguidos de estudo e "zera" automaticamente em caso de falhas.
-- **📚 Controle de Edital e PDFs:** Inserção de edital em massa (separação automática por vírgulas ou quebras de linha), controle de tópicos revisados e gerenciador de leitura de PDFs com barra de progresso.
-- **🧠 Revisões Espaçadas Automáticas:** Geração automática de revisões (Ex: 1, 7, 30 dias) ao concluir um tópico, com dias customizáveis pelo usuário.
-- **💾 Backup Híbrido:** Sincronização automática via Firebase Firestore, além da opção de importar/exportar um backup físico `.json`.
+## 🛠️ Funcionalidades Principais
 
-## 🛠️ Tecnologias Utilizadas
+### 1. Gestão de Tempo e Foco
+* **Pomodoro Customizável:** Configure o tempo de foco e pausa.
+* **Cronômetro Livre:** Para medir sessões contínuas.
+* **Sistema de Ofensiva (Streak):** Monitora dias consecutivos de estudo.
 
-- **Front-end:** HTML5, CSS3, JavaScript (ES6+ Modular)
-- **Estilização:** Tailwind CSS (Via CDN) e FontAwesome (Ícones)
-- **Visualização de Dados:** Chart.js
-- **Back-end / BaaS:** Google Firebase (Authentication & Cloud Firestore)
-- **Hospedagem:** GitHub Pages
+### 2. Controle de Edital e Materiais
+* **Edital em Massa:** Adicione matérias e subtópicos separados por vírgula.
+* **Acompanhamento de PDFs:** Salve links, páginas lidas e calcule a porcentagem de avanço no material.
+* **Progresso Visual:** Barra de progresso para cada matéria do edital.
 
-## 🚀 Como Executar o Projeto
+### 3. Revisões e Desempenho
+* **Agendamento Automático:** Define revisões espaçadas (ex: 1d, 7d, 30d) automaticamente ao concluir um tópico.
+* **Controle de Questões:** Registre acertos e erros vinculados a cada matéria específica.
+* **Dashboards Visuais:** Gráficos de evolução semanal (linha), aproveitamento (pizza) e tempo dedicado por matéria (barras).
 
-**1. Acesso Online:**
-Você pode testar a aplicação diretamente pelo navegador acessando o link do GitHub Pages:
-[🌐 Acessar EstudoPro](https://brunomcpherson.github.io/EstudoPro/) *(Substitua pelo seu link real)*
+### 4. Nuvem e Segurança
+* **Autenticação:** Login e Cadastro seguros gerenciados pelo Firebase Auth.
+* **Banco de Dados em Tempo Real:** Dados protegidos por regras estritas (Security Rules) no Firebase Firestore, garantindo que o usuário só acesse seus próprios dados.
 
-**2. Rodando Localmente:**
-1. Clone este repositório:
-   ```bash
-   git clone [https://github.com/BrunoMcpherson/EstudoPro](https://github.com/BrunoMcpherson/EstudoPro)
+---
+
+## 💻 Tecnologias Utilizadas
+
+O projeto foi construído com foco em leveza, performance e design moderno, sem a necessidade de frameworks pesados no front-end:
+
+* **HTML5 e CSS3**
+* **JavaScript (Vanilla / ES6 Modules)**
+* **Tailwind CSS:** Para estilização responsiva, componentização visual rápida e Modo Noturno.
+* **Chart.js:** Renderização de gráficos interativos.
+* **Firebase (Google):** 
+  * *Authentication* (Gestão de Identidade).
+  * *Firestore* (Banco de Dados NoSQL escalável).
+* **GitHub Pages:** Para hospedagem e CI/CD direto do repositório.
+
+---
+
+## ⚙️ Como executar o projeto localmente
+
+Como o projeto utiliza ES6 Modules para se comunicar com o SDK do Firebase, ele precisa rodar através de um servidor local.
+
+1. Clone este repositório no seu computador:
+```bash
+git clone [https://github.com/BrunoMcpherson/EstudoPro.git](https://github.com/BrunoMcpherson/EstudoPro.git)

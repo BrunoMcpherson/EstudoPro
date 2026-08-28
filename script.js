@@ -1,5 +1,3 @@
-// script.js
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -23,8 +21,9 @@ let dadosEstudo = {
     ofensiva: { dias: 0, ultimaData: null }, questoesGerais: { acertos: 0, erros: 0 },
     historicoDias: {}, intervalosRevisao: [1, 7, 30], pdfs: [], concursos: [], concursoAtivo: null,
     perfil: { nome: "", idade: "", telefone: "", email: "" },
-    configRevisaoAuto: true,
-    darkMode: false // Variável do Modo Noturno
+    configRevisaoAuto: true, darkMode: false,
+    flashcards: [], resumos: [],
+    layoutFlashcards: 'grid', layoutResumos: 'grid' // NOVAS VARIÁVEIS DE LAYOUT
 };
 
 let chartGeral = null, chartMaterias = null, chartEvolucao = null, chartTempoMat = null;
@@ -41,6 +40,10 @@ function validarEstruturaDados() {
     dadosEstudo.ofensiva = dadosEstudo.ofensiva || { dias: 0, ultimaData: null }; dadosEstudo.questoesGerais = dadosEstudo.questoesGerais || { acertos: 0, erros: 0 };
     if(dadosEstudo.configRevisaoAuto === undefined) dadosEstudo.configRevisaoAuto = true;
     if(dadosEstudo.darkMode === undefined) dadosEstudo.darkMode = false;
+    if(dadosEstudo.flashcards === undefined) dadosEstudo.flashcards = [];
+    if(dadosEstudo.resumos === undefined) dadosEstudo.resumos = [];
+    if(dadosEstudo.layoutFlashcards === undefined) dadosEstudo.layoutFlashcards = 'grid';
+    if(dadosEstudo.layoutResumos === undefined) dadosEstudo.layoutResumos = 'grid';
     if(dadosEstudo.concurso && dadosEstudo.concurso.nome) { const idNovo = Date.now(); dadosEstudo.concursos.push({ id: idNovo, nome: dadosEstudo.concurso.nome, data: dadosEstudo.concurso.data }); dadosEstudo.concursoAtivo = idNovo; delete dadosEstudo.concurso; salvarLocal(false); }
 }
 
@@ -56,20 +59,139 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 function salvarLocal(recarregarGraficos = true) {
-    renderizarTopBar(); renderizarEdital(); renderizarRevisoes();
-    if(recarregarGraficos) { renderizarTabelasEListas(); atualizarGraficos(); }
+    renderizarTopBar(); renderizarEdital(); renderizarRevisoes(); 
+    if(recarregarGraficos) { renderizarTabelasEListas(); atualizarGraficos(); renderizarFlashcards(); renderizarResumos(); }
     if(usuarioAtual) { setDoc(doc(db, "usuarios", usuarioAtual.uid), dadosEstudo).catch(e => console.error(e)); }
 }
 
-// MODO NOTURNO
-function toggleDarkMode() {
-    dadosEstudo.darkMode = !dadosEstudo.darkMode;
-    aplicarDarkMode();
-    salvarLocal(true); // Recarrega para atualizar os gráficos
+function toggleDarkMode() { dadosEstudo.darkMode = !dadosEstudo.darkMode; aplicarDarkMode(); salvarLocal(true); }
+function aplicarDarkMode() { if(dadosEstudo.darkMode) { document.documentElement.classList.add('dark'); } else { document.documentElement.classList.remove('dark'); } }
+
+function mudarViewPrincipal(view) {
+    document.getElementById('nav-dashboard').classList.remove('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400'); document.getElementById('nav-dashboard').classList.add('text-gray-500', 'dark:text-gray-400');
+    document.getElementById('nav-materiais').classList.remove('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400'); document.getElementById('nav-materiais').classList.add('text-gray-500', 'dark:text-gray-400');
+    document.getElementById('view-dashboard').classList.add('hidden'); document.getElementById('view-dashboard').classList.remove('block');
+    document.getElementById('view-materiais').classList.add('hidden'); document.getElementById('view-materiais').classList.remove('block');
+    
+    if(view === 'dashboard') { document.getElementById('nav-dashboard').classList.add('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400'); document.getElementById('nav-dashboard').classList.remove('text-gray-500', 'dark:text-gray-400'); document.getElementById('view-dashboard').classList.remove('hidden'); document.getElementById('view-dashboard').classList.add('block'); } 
+    else { document.getElementById('nav-materiais').classList.add('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400'); document.getElementById('nav-materiais').classList.remove('text-gray-500', 'dark:text-gray-400'); document.getElementById('view-materiais').classList.remove('hidden'); document.getElementById('view-materiais').classList.add('block'); }
 }
-function aplicarDarkMode() {
-    if(dadosEstudo.darkMode) { document.documentElement.classList.add('dark'); } 
-    else { document.documentElement.classList.remove('dark'); }
+function mudarAbaMaterial(aba) {
+    document.getElementById('tab-mat-flashcards').classList.remove('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400'); document.getElementById('tab-mat-flashcards').classList.add('text-gray-500', 'dark:text-gray-400');
+    document.getElementById('tab-mat-resumos').classList.remove('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400'); document.getElementById('tab-mat-resumos').classList.add('text-gray-500', 'dark:text-gray-400');
+    document.getElementById('sec-flashcards').classList.add('hidden'); document.getElementById('sec-flashcards').classList.remove('block');
+    document.getElementById('sec-resumos').classList.add('hidden'); document.getElementById('sec-resumos').classList.remove('block');
+    
+    if(aba === 'flashcards') { document.getElementById('tab-mat-flashcards').classList.add('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400'); document.getElementById('tab-mat-flashcards').classList.remove('text-gray-500', 'dark:text-gray-400'); document.getElementById('sec-flashcards').classList.remove('hidden'); document.getElementById('sec-flashcards').classList.add('block'); } 
+    else { document.getElementById('tab-mat-resumos').classList.add('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400'); document.getElementById('tab-mat-resumos').classList.remove('text-gray-500', 'dark:text-gray-400'); document.getElementById('sec-resumos').classList.remove('hidden'); document.getElementById('sec-resumos').classList.add('block'); }
+}
+
+// NOVA FUNÇÃO: Alternar Layouts
+function mudarLayout(tipo, layout) {
+    if(tipo === 'flashcards') { dadosEstudo.layoutFlashcards = layout; renderizarFlashcards(); } 
+    else { dadosEstudo.layoutResumos = layout; renderizarResumos(); }
+    salvarLocal(false);
+}
+
+// LÓGICA DE FLASHCARDS
+function salvarFlashcard() {
+    const materia = document.getElementById('select-materia-flashcard').value; const frente = document.getElementById('flashcard-frente').value.trim(); const verso = document.getElementById('flashcard-verso').value.trim();
+    if(!materia) return alert("Selecione uma matéria!"); if(!frente || !verso) return alert("Preencha a frente e o verso.");
+    dadosEstudo.flashcards.push({ id: Date.now(), materia, frente, verso });
+    document.getElementById('flashcard-frente').value = ''; document.getElementById('flashcard-verso').value = '';
+    salvarLocal(false); renderizarFlashcards(); alert("Cartão Salvo!");
+}
+function deletarFlashcard(id) { if(confirm("Excluir este cartão?")) { dadosEstudo.flashcards = dadosEstudo.flashcards.filter(f => f.id !== id); salvarLocal(false); renderizarFlashcards(); } }
+function alternarFlashcardLista(id) { document.getElementById(`fc-verso-${id}`).classList.toggle('hidden'); }
+
+function renderizarFlashcards() {
+    const grid = document.getElementById('grid-flashcards'); grid.innerHTML = ''; const filtro = document.getElementById('filtro-flashcard').value;
+    let list = dadosEstudo.flashcards; if(filtro && filtro !== 'todas') list = list.filter(f => f.materia === filtro);
+    
+    // Atualiza visual dos botões
+    document.getElementById('btn-layout-fc-grid').className = dadosEstudo.layoutFlashcards === 'grid' ? "px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" : "px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition";
+    document.getElementById('btn-layout-fc-lista').className = dadosEstudo.layoutFlashcards === 'lista' ? "px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" : "px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition";
+
+    if(list.length === 0) { grid.innerHTML = '<p class="text-gray-400 col-span-full">Nenhum flashcard criado ainda.</p>'; return; }
+    
+    if(dadosEstudo.layoutFlashcards === 'grid') {
+        grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6";
+        list.forEach(f => {
+            grid.innerHTML += `
+            <div class="flip-card perspective-1000 w-full h-56 cursor-pointer group" onclick="this.classList.toggle('flipped')">
+                <div class="flip-card-inner relative w-full h-full transform-style-3d">
+                    <div class="absolute w-full h-full backface-hidden bg-white dark:bg-gray-800 rounded-2xl shadow-md p-4 flex flex-col justify-center items-center text-center border-t-4 border-indigo-500 dark:border-gray-600">
+                        <span class="absolute top-2 left-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">${f.materia}</span>
+                        <button onclick="event.stopPropagation(); deletarFlashcard(${f.id})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition z-10"><i class="fa-solid fa-trash"></i></button>
+                        <p class="font-bold text-gray-800 dark:text-gray-100 text-sm md:text-base">${f.frente}</p>
+                        <span class="absolute bottom-2 text-xs text-indigo-400 dark:text-indigo-500 font-bold"><i class="fa-solid fa-rotate mr-1"></i> Clicar para virar</span>
+                    </div>
+                    <div class="absolute w-full h-full backface-hidden bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl shadow-md p-4 flex flex-col justify-center items-center text-center rotate-y-180 overflow-y-auto scroll-custom">
+                        <p class="text-white font-bold text-sm md:text-base leading-relaxed">${f.verso}</p>
+                    </div>
+                </div>
+            </div>`;
+        });
+    } else {
+        grid.className = "flex flex-col gap-3";
+        list.forEach(f => {
+            grid.innerHTML += `
+            <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl shadow-sm overflow-hidden group">
+                <div class="p-3 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition" onclick="alternarFlashcardLista(${f.id})">
+                    <div class="flex items-center gap-3"><span class="text-[10px] font-bold text-white bg-indigo-500 px-2 py-1 rounded uppercase tracking-widest hidden md:block">${f.materia}</span><p class="font-bold text-gray-800 dark:text-white text-sm">${f.frente}</p></div>
+                    <div class="flex items-center gap-4">
+                        <button onclick="event.stopPropagation(); deletarFlashcard(${f.id})" class="text-gray-300 hover:text-red-500 transition" title="Apagar Cartão"><i class="fa-solid fa-trash"></i></button>
+                        <i class="fa-solid fa-chevron-down text-gray-400"></i>
+                    </div>
+                </div>
+                <div id="fc-verso-${f.id}" class="hidden p-4 border-t dark:border-gray-700 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-900 dark:text-indigo-100 text-sm">
+                    <p class="font-bold whitespace-pre-wrap">${f.verso}</p>
+                </div>
+            </div>`;
+        });
+    }
+}
+
+// LÓGICA DE RESUMOS
+function salvarResumo() {
+    const materia = document.getElementById('select-materia-resumo').value; const titulo = document.getElementById('resumo-titulo').value.trim(); const conteudo = document.getElementById('resumo-conteudo').value.trim();
+    if(!materia) return alert("Selecione uma matéria!"); if(!titulo || !conteudo) return alert("Preencha título e conteúdo.");
+    const data = new Date().toLocaleDateString('pt-BR');
+    dadosEstudo.resumos.push({ id: Date.now(), materia, titulo, conteudo, data });
+    document.getElementById('resumo-titulo').value = ''; document.getElementById('resumo-conteudo').value = '';
+    salvarLocal(false); renderizarResumos(); alert("Resumo Salvo!");
+}
+function deletarResumo(id) { if(confirm("Excluir este caderno/resumo?")) { dadosEstudo.resumos = dadosEstudo.resumos.filter(r => r.id !== id); salvarLocal(false); renderizarResumos(); } }
+function alternarResumo(id) { document.getElementById(`cont-resumo-${id}`).classList.toggle('hidden'); }
+
+function renderizarResumos() {
+    const lista = document.getElementById('lista-meus-resumos'); lista.innerHTML = ''; const filtro = document.getElementById('filtro-resumo').value;
+    let list = dadosEstudo.resumos; if(filtro && filtro !== 'todas') list = list.filter(r => r.materia === filtro);
+    
+    // Atualiza visual dos botões
+    document.getElementById('btn-layout-res-grid').className = dadosEstudo.layoutResumos === 'grid' ? "px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" : "px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition";
+    document.getElementById('btn-layout-res-lista').className = dadosEstudo.layoutResumos === 'lista' ? "px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" : "px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition";
+
+    if(list.length === 0) { lista.innerHTML = '<p class="text-gray-400 col-span-full">Nenhum resumo criado ainda.</p>'; return; }
+    
+    lista.className = dadosEstudo.layoutResumos === 'grid' ? "grid grid-cols-1 lg:grid-cols-2 gap-4" : "flex flex-col gap-4";
+
+    list.forEach(r => {
+        const textoFormatado = r.conteudo.replace(/\n/g, '<br>');
+        lista.innerHTML += `
+        <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
+            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition" onclick="alternarResumo(${r.id})">
+                <div><span class="text-xs font-bold text-green-600 dark:text-green-400 uppercase">${r.materia}</span><h3 class="font-bold text-gray-800 dark:text-white text-lg">${r.titulo}</h3><span class="text-xs text-gray-500 dark:text-gray-400"><i class="fa-regular fa-calendar mr-1"></i>${r.data}</span></div>
+                <div class="flex gap-4 items-center">
+                    <button onclick="event.stopPropagation(); deletarResumo(${r.id})" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i></button>
+                    <i class="fa-solid fa-chevron-down text-gray-400"></i>
+                </div>
+            </div>
+            <div id="cont-resumo-${r.id}" class="hidden p-6 border-t dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm leading-relaxed max-h-96 overflow-y-auto scroll-custom">
+                ${textoFormatado}
+            </div>
+        </div>`;
+    });
 }
 
 function mostrarFormConcurso() { document.getElementById('form-novo-concurso').classList.remove('hidden'); document.getElementById('form-novo-concurso').classList.add('flex'); }
@@ -197,32 +319,37 @@ function renderizarEdital() {
     });
 }
 function renderizarRevisoes() { const lr = document.getElementById('lista-revisoes'); lr.innerHTML = dadosEstudo.revisoes.length === 0 ? "<p class='text-gray-500 dark:text-gray-400 text-sm'>Tudo em dia!</p>" : ""; dadosEstudo.revisoes.forEach(r => { const [a, m, d] = r.dataAgendada.split('-'); lr.innerHTML += `<div class="bg-white dark:bg-gray-700 p-3 rounded-lg border-l-4 border-orange-400 shadow-sm flex justify-between items-center mb-2"><div><p class="text-xs text-orange-600 dark:text-orange-400 font-bold uppercase">${r.tipo} - ${d}/${m}/${a}</p><p class="font-bold text-gray-800 dark:text-white text-sm">${r.materia}</p> <p class="text-gray-500 dark:text-gray-300 text-xs truncate w-32 md:w-48">${r.subtema}</p></div><div class="flex gap-1"><button onclick="concluirRevisao(${r.id})" class="text-green-500 hover:text-green-700 dark:hover:text-green-400 p-2"><i class="fa-solid fa-check-circle text-xl"></i></button><button onclick="excluirRevisao(${r.id})" class="text-gray-400 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button></div></div>`; }); }
+
 function renderizarTabelasEListas() {
     const listaPdfs = document.getElementById('lista-pdfs'); listaPdfs.innerHTML = dadosEstudo.pdfs.length === 0 ? "<p class='text-gray-400 text-sm'>Nenhum material.</p>" : ""; dadosEstudo.pdfs.forEach(p => { let pct = p.totalPaginas > 0 ? Math.round((p.lidas / p.totalPaginas) * 100) : 0; let lHtml = p.link ? `<a href="${p.link}" target="_blank" class="text-blue-500 hover:underline text-xs">Abrir PDF</a>` : ``; listaPdfs.innerHTML += `<div class="border dark:border-gray-700 rounded p-3 bg-white dark:bg-gray-700 shadow-sm border-l-4 border-red-400"><div class="flex justify-between items-start mb-2"><div><p class="font-bold text-gray-800 dark:text-white text-sm">${p.nome}</p>${lHtml}</div><button onclick="deletarPdf(${p.id})" class="text-gray-300 dark:text-gray-500 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div><div class="flex justify-between text-xs text-gray-500 dark:text-gray-300 mb-1 font-bold"><span>Lidas: ${p.lidas}/${p.totalPaginas}</span> <span>Pág. ${p.ultimaPagina}</span></div><div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-3"><div class="bg-red-500 h-1.5 rounded-full" style="width: ${pct}%"></div></div><div class="flex items-center gap-1 text-xs"><input type="number" id="pdf-ini-${p.id}" placeholder="Início" class="border dark:border-gray-600 dark:bg-gray-800 dark:text-white p-1 w-12 rounded text-center"><span class="dark:text-gray-300">a</span><input type="number" id="pdf-fim-${p.id}" placeholder="Fim" class="border dark:border-gray-600 dark:bg-gray-800 dark:text-white p-1 w-12 rounded text-center"><button onclick="atualizarLeituraPdf(${p.id})" class="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 px-2 py-1 rounded font-bold hover:bg-green-200 dark:hover:bg-green-900 flex-1">+ Reg.</button></div></div>`; });
-    const selMatQ = document.getElementById('select-materia-questoes'); selMatQ.innerHTML = '<option value="">Selecione...</option>'; const selMatT = document.getElementById('select-materia-tempo'); selMatT.innerHTML = '<option value="" disabled selected>Selecione a matéria...</option>'; const tabQ = document.getElementById('tabela-questoes'); tabQ.innerHTML = "";
-    dadosEstudo.materias.forEach((mat, iMat) => { selMatQ.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; selMatT.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; if(mat.questoes) { const tM = mat.questoes.acertos + mat.questoes.erros; const pctM = tM === 0 ? 0 : Math.round((mat.questoes.acertos / tM)*100); tabQ.innerHTML += `<tr class="border-b dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50"><td class="py-2 font-bold text-gray-700 dark:text-gray-200">${mat.nome}</td> <td class="py-2 text-center text-gray-500 dark:text-gray-400">${tM}</td><td class="py-2 text-center font-bold text-green-600 dark:text-green-400">${mat.questoes.acertos}</td> <td class="py-2 text-center font-bold text-red-500 dark:text-red-400">${mat.questoes.erros}</td><td class="py-2 text-right font-black ${pctM >= 80 ? 'text-green-600 dark:text-green-400' : (pctM>=60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400')}">${pctM}%</td> </tr>`; } });
+    
+    const selMatQ = document.getElementById('select-materia-questoes'); selMatQ.innerHTML = '<option value="">Selecione...</option>'; 
+    const selMatT = document.getElementById('select-materia-tempo'); selMatT.innerHTML = '<option value="" disabled selected>Selecione a matéria...</option>'; 
+    const selMatF = document.getElementById('select-materia-flashcard'); selMatF.innerHTML = '<option value="" disabled selected>Selecione a matéria...</option>';
+    const selMatR = document.getElementById('select-materia-resumo'); selMatR.innerHTML = '<option value="" disabled selected>Selecione a matéria...</option>';
+    
+    const filtroF = document.getElementById('filtro-flashcard'); filtroF.innerHTML = '<option value="todas">Todas as Matérias</option>';
+    const filtroR = document.getElementById('filtro-resumo'); filtroR.innerHTML = '<option value="todas">Todas as Matérias</option>';
+
+    const tabQ = document.getElementById('tabela-questoes'); tabQ.innerHTML = "";
+
+    dadosEstudo.materias.forEach((mat, iMat) => { 
+        selMatQ.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; 
+        selMatT.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; 
+        selMatF.innerHTML += `<option value="${mat.nome}">${mat.nome}</option>`; 
+        selMatR.innerHTML += `<option value="${mat.nome}">${mat.nome}</option>`; 
+        filtroF.innerHTML += `<option value="${mat.nome}">${mat.nome}</option>`; 
+        filtroR.innerHTML += `<option value="${mat.nome}">${mat.nome}</option>`; 
+
+        if(mat.questoes) { const tM = mat.questoes.acertos + mat.questoes.erros; const pctM = tM === 0 ? 0 : Math.round((mat.questoes.acertos / tM)*100); tabQ.innerHTML += `<tr class="border-b dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50"><td class="py-2 font-bold text-gray-700 dark:text-gray-200">${mat.nome}</td> <td class="py-2 text-center text-gray-500 dark:text-gray-400">${tM}</td><td class="py-2 text-center font-bold text-green-600 dark:text-green-400">${mat.questoes.acertos}</td> <td class="py-2 text-center font-bold text-red-500 dark:text-red-400">${mat.questoes.erros}</td><td class="py-2 text-right font-black ${pctM >= 80 ? 'text-green-600 dark:text-green-400' : (pctM>=60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400')}">${pctM}%</td> </tr>`; } 
+    });
 }
 
 function atualizarGraficos() {
-    // Define a cor base dos textos dos gráficos baseado no Modo Noturno
-    const textColor = dadosEstudo.darkMode ? '#9ca3af' : '#6b7280';
-    Chart.defaults.color = textColor;
-
+    const textColor = dadosEstudo.darkMode ? '#9ca3af' : '#6b7280'; Chart.defaults.color = textColor;
     let totQ = dadosEstudo.questoesGerais.acertos + dadosEstudo.questoesGerais.erros; 
     if(chartGeral) chartGeral.destroy(); 
-    chartGeral = new Chart(document.getElementById('graficoGeral').getContext('2d'), { 
-        type: 'doughnut', 
-        data: { labels: totQ>0?['Acertos', 'Erros']:['Sem Dados'], datasets: [{ data: totQ>0?[dadosEstudo.questoesGerais.acertos, dadosEstudo.questoesGerais.erros]:[1], backgroundColor: totQ>0?['#10b981', '#ef4444']:['#e5e7eb'], borderWidth: 0 }] }, 
-        options: { 
-            responsive: true, maintainAspectRatio: false, cutout: '70%', 
-            plugins: { 
-                legend: { display: false }, 
-                // TÍTULO ADICIONADO AQUI
-                title: { display: true, text: 'Geral (Acertos x Erros)', color: textColor, font: { size: 14 } },
-                tooltip: { enabled: totQ>0, callbacks: { label: function(context) { return ' ' + context.label + ': ' + context.parsed + ' questões'; } } } 
-            } 
-        } 
-    });
+    chartGeral = new Chart(document.getElementById('graficoGeral').getContext('2d'), { type: 'doughnut', data: { labels: totQ>0?['Acertos', 'Erros']:['Sem Dados'], datasets: [{ data: totQ>0?[dadosEstudo.questoesGerais.acertos, dadosEstudo.questoesGerais.erros]:[1], backgroundColor: totQ>0?['#10b981', '#ef4444']:['#e5e7eb'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, title: { display: true, text: 'Geral (Acertos x Erros)', color: textColor, font: { size: 14 } }, tooltip: { enabled: totQ>0, callbacks: { label: function(context) { return ' ' + context.label + ': ' + context.parsed + ' questões'; } } } } } });
 
     const labelsM = [], dadosM = [], coresM = [], labelsT = [], dadosT = [];
     dadosEstudo.materias.forEach(m => { 
@@ -232,35 +359,14 @@ function atualizarGraficos() {
     });
 
     if(chartMaterias) chartMaterias.destroy(); 
-    chartMaterias = new Chart(document.getElementById('graficoMaterias').getContext('2d'), { 
-        type: 'bar', 
-        data: { labels: labelsM.length > 0 ? labelsM : ['-'], datasets: [{ data: dadosM.length > 0 ? dadosM : [0], backgroundColor: coresM.length > 0 ? coresM : ['#374151'], borderRadius: 4 }] }, 
-        options: { 
-            responsive: true, maintainAspectRatio: false, scales: { y: { max: 100, grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } }, x: { grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } }, 
-            plugins: { 
-                legend: { display: false }, 
-                // TÍTULO ADICIONADO AQUI
-                title: { display: true, text: 'Aproveitamento por Matéria (%)', color: textColor, font: { size: 14 } },
-                tooltip: { callbacks: { label: function(context) { return ' Aproveitamento: ' + context.parsed.y + '%'; } } } 
-            } 
-        } 
-    });
-
+    chartMaterias = new Chart(document.getElementById('graficoMaterias').getContext('2d'), { type: 'bar', data: { labels: labelsM.length > 0 ? labelsM : ['-'], datasets: [{ data: dadosM.length > 0 ? dadosM : [0], backgroundColor: coresM.length > 0 ? coresM : ['#374151'], borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100, grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } }, x: { grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } }, plugins: { legend: { display: false }, title: { display: true, text: 'Aproveitamento por Matéria (%)', color: textColor, font: { size: 14 } }, tooltip: { callbacks: { label: function(context) { return ' Aproveitamento: ' + context.parsed.y + '%'; } } } } } });
     if(chartTempoMat) chartTempoMat.destroy(); 
-    chartTempoMat = new Chart(document.getElementById('graficoTempoMateria').getContext('2d'), { 
-        type: 'bar', 
-        data: { labels: labelsT.length > 0 ? labelsT : ['-'], datasets: [{ label: 'Horas', data: dadosT.length > 0 ? dadosT : [0], backgroundColor: '#4f46e5', borderRadius: 4 }] }, 
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } }, x: { grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return ' Tempo: ' + context.parsed.y + ' hora(s)'; } } } } } 
-    });
-    
+    chartTempoMat = new Chart(document.getElementById('graficoTempoMateria').getContext('2d'), { type: 'bar', data: { labels: labelsT.length > 0 ? labelsT : ['-'], datasets: [{ label: 'Horas', data: dadosT.length > 0 ? dadosT : [0], backgroundColor: '#4f46e5', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } }, x: { grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return ' Tempo: ' + context.parsed.y + ' hora(s)'; } } } } } });
     const evoLabels = []; const evoMin = []; const evoQtd = [];
     for(let i=6; i>=0; i--) { let d = new Date(); d.setDate(d.getDate() - i); let dStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); evoLabels.push(`${d.getDate()}/${d.getMonth()+1}`); let h = dadosEstudo.historicoDias[dStr] || { minutos:0, acertos:0, erros:0 }; evoMin.push(h.minutos); evoQtd.push(h.acertos + h.erros); }
-    if(chartEvolucao) chartEvolucao.destroy(); chartEvolucao = new Chart(document.getElementById('graficoEvolucao').getContext('2d'), { 
-        type: 'line', 
-        data: { labels: evoLabels, datasets: [ { label: 'Minutos Estudados', data: evoMin, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3 }, { label: 'Questões', data: evoQtd, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3 } ] }, 
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } }, x: { grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } }, plugins: { legend: { position: 'top', labels: { color: textColor } } } } 
-    });
+    if(chartEvolucao) chartEvolucao.destroy(); chartEvolucao = new Chart(document.getElementById('graficoEvolucao').getContext('2d'), { type: 'line', data: { labels: evoLabels, datasets: [ { label: 'Minutos Estudados', data: evoMin, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3 }, { label: 'Questões', data: evoQtd, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3 } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } }, x: { grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } }, plugins: { legend: { position: 'top', labels: { color: textColor } } } } });
 }
-function atualizarInterface() { renderizarTopBar(); renderizarTabelasEListas(); renderizarEdital(); renderizarRevisoes(); }
+function atualizarInterface() { renderizarTopBar(); renderizarTabelasEListas(); renderizarEdital(); renderizarRevisoes(); renderizarFlashcards(); renderizarResumos(); }
 
 window.alternarAuth = alternarAuth; window.fazerLogin = fazerLogin; window.criarConta = criarConta; window.sairConta = sairConta; window.aplicarConfigPomo = aplicarConfigPomo; window.iniciarPomodoro = iniciarPomodoro; window.pausarPomodoroTimer = pausarPomodoroTimer; window.pararPomodoro = pararPomodoro; window.iniciarCrono = iniciarCrono; window.pausarCrono = pausarCrono; window.pararESalvarCrono = pararESalvarCrono; window.mudarAbaTempo = mudarAbaTempo; window.salvarTempoManual = salvarTempoManual; window.resetarPaginas = resetarPaginas; window.resetarQuestoes = resetarQuestoes; window.resetarTempo = resetarTempo; window.resetarPomodoros = resetarPomodoros; window.resetarCalendario = resetarCalendario; window.adicionarMateriaEmMassa = adicionarMateriaEmMassa; window.adicionarSubtema = adicionarSubtema; window.alternarConclusao = alternarConclusao; window.deletarMateria = deletarMateria; window.deletarSubtema = deletarSubtema; window.alternarExpandirMateria = alternarExpandirMateria; window.adicionarPdf = adicionarPdf; window.atualizarLeituraPdf = atualizarLeituraPdf; window.deletarPdf = deletarPdf; window.salvarQuestoes = salvarQuestoes; window.salvarConfigRevisoes = salvarConfigRevisoes; window.concluirRevisao = concluirRevisao; window.excluirRevisao = excluirRevisao; window.mostrarFormConcurso = mostrarFormConcurso; window.esconderFormConcurso = esconderFormConcurso; window.adicionarConcurso = adicionarConcurso; window.mudarConcursoAtivo = mudarConcursoAtivo; window.deletarConcursoAtivo = deletarConcursoAtivo; window.toggleRevisaoAuto = toggleRevisaoAuto; window.toggleDarkMode = toggleDarkMode;
+window.mudarViewPrincipal = mudarViewPrincipal; window.mudarAbaMaterial = mudarAbaMaterial; window.salvarFlashcard = salvarFlashcard; window.deletarFlashcard = deletarFlashcard; window.renderizarFlashcards = renderizarFlashcards; window.salvarResumo = salvarResumo; window.deletarResumo = deletarResumo; window.alternarResumo = alternarResumo; window.renderizarResumos = renderizarResumos; window.mudarLayout = mudarLayout; window.alternarFlashcardLista = alternarFlashcardLista;
