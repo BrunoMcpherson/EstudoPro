@@ -1,6 +1,6 @@
 // script.js
 
-// IMPORTAÇÕES DO FIREBASE (Nuvem)
+// IMPORTAÇÕES DO FIREBASE
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -25,7 +25,7 @@ let dadosEstudo = {
     materias: [], revisoes: [], tempoTotal: 0, pomodorosRealizados: 0, paginasLidas: 0,
     ofensiva: { dias: 0, ultimaData: null }, questoesGerais: { acertos: 0, erros: 0 },
     historicoDias: {}, intervalosRevisao: [1, 7, 30], pdfs: [], concursos: [], concursoAtivo: null,
-    perfil: { nome: "", idade: "", telefone: "", email: "" } // Novos dados de cadastro
+    perfil: { nome: "", idade: "", telefone: "", email: "" }
 };
 
 let chartGeral = null, chartMaterias = null, chartEvolucao = null, chartTempoMat = null;
@@ -40,51 +40,56 @@ function exibirMensagemErro(msg) {
 }
 
 function alternarAuth(tela) {
-    const login = document.getElementById('form-login');
-    const cadastro = document.getElementById('form-cadastro');
-    const sub = document.getElementById('auth-subtitle');
-    document.getElementById('auth-mensagem').classList.add('hidden'); // Limpa os erros
-
-    if(tela === 'cadastro') {
-        login.classList.add('hidden'); cadastro.classList.remove('hidden'); sub.innerText = "Crie sua conta para salvar na nuvem";
-    } else {
-        cadastro.classList.add('hidden'); login.classList.remove('hidden'); sub.innerText = "Acesse sua conta";
-    }
+    const login = document.getElementById('form-login'); const cadastro = document.getElementById('form-cadastro'); const sub = document.getElementById('auth-subtitle');
+    document.getElementById('auth-mensagem').classList.add('hidden');
+    if(tela === 'cadastro') { login.classList.add('hidden'); cadastro.classList.remove('hidden'); sub.innerText = "Crie sua conta para salvar na nuvem"; } 
+    else { cadastro.classList.add('hidden'); login.classList.remove('hidden'); sub.innerText = "Acesse sua conta"; }
 }
 
 async function fazerLogin() {
-    const email = document.getElementById('login-email').value;
-    const senha = document.getElementById('login-senha').value;
+    const email = document.getElementById('login-email').value; const senha = document.getElementById('login-senha').value;
     if(!email || !senha) return exibirMensagemErro("Preencha todos os campos.");
-    try { await signInWithEmailAndPassword(auth, email, senha); } 
-    catch (error) { exibirMensagemErro("Email ou senha incorretos."); }
+    try { await signInWithEmailAndPassword(auth, email, senha); } catch (error) { exibirMensagemErro("Email ou senha incorretos."); }
 }
 
 async function criarConta() {
-    const nome = document.getElementById('cad-nome').value;
-    const idade = document.getElementById('cad-idade').value;
-    const telefone = document.getElementById('cad-telefone').value;
-    const email = document.getElementById('cad-email').value;
+    const nome = document.getElementById('cad-nome').value; const idade = document.getElementById('cad-idade').value;
+    const telefone = document.getElementById('cad-telefone').value; const email = document.getElementById('cad-email').value;
     const senha = document.getElementById('cad-senha').value;
 
-    if(!nome || !idade || !telefone || !email || !senha) return exibirMensagemErro("Preencha todos os campos do cadastro.");
+    if(!nome || !idade || !telefone || !email || !senha) return exibirMensagemErro("Preencha todos os campos.");
     if(senha.length < 6) return exibirMensagemErro("A senha deve ter no mínimo 6 caracteres.");
 
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
-        const user = userCredential.user;
-        
-        // Antes de mostrar a tela, já injeta os dados do perfil dele no banco de dados zerado
         dadosEstudo.perfil = { nome, idade, telefone, email };
-        await setDoc(doc(db, "usuarios", user.uid), dadosEstudo);
-    } catch (error) {
-        exibirMensagemErro("Erro ao criar conta. Email já existe ou formato inválido.");
-    }
+        await setDoc(doc(db, "usuarios", userCredential.user.uid), dadosEstudo);
+    } catch (error) { exibirMensagemErro("Erro ao criar conta. Email já existe ou formato inválido."); }
 }
 
 async function sairConta() { await signOut(auth); }
 
-// VERIFICA SE O USUÁRIO LOGOU OU DESLOGOU
+// GARANTE QUE O FIREBASE NÃO QUEBRE A ESTRUTURA DO APP
+function validarEstruturaDados() {
+    dadosEstudo.concursos = dadosEstudo.concursos || [];
+    dadosEstudo.materias = dadosEstudo.materias || [];
+    dadosEstudo.revisoes = dadosEstudo.revisoes || [];
+    dadosEstudo.pdfs = dadosEstudo.pdfs || [];
+    dadosEstudo.historicoDias = dadosEstudo.historicoDias || {};
+    dadosEstudo.intervalosRevisao = dadosEstudo.intervalosRevisao || [1, 7, 30];
+    dadosEstudo.ofensiva = dadosEstudo.ofensiva || { dias: 0, ultimaData: null };
+    dadosEstudo.questoesGerais = dadosEstudo.questoesGerais || { acertos: 0, erros: 0 };
+    
+    // Auto-migração caso o formato antigo de concurso ainda exista na nuvem
+    if(dadosEstudo.concurso && dadosEstudo.concurso.nome) {
+        const idNovo = Date.now();
+        dadosEstudo.concursos.push({ id: idNovo, nome: dadosEstudo.concurso.nome, data: dadosEstudo.concurso.data });
+        dadosEstudo.concursoAtivo = idNovo;
+        delete dadosEstudo.concurso;
+        salvarLocal(false);
+    }
+}
+
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         usuarioAtual = user;
@@ -96,14 +101,13 @@ onAuthStateChanged(auth, async (user) => {
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
                 dadosEstudo = { ...dadosEstudo, ...docSnap.data() }; 
+                validarEstruturaDados(); // Evita bugs caso venha com formato velho
             } else {
                 await setDoc(docRef, dadosEstudo); 
             }
         } catch(e) { console.error(e); }
 
         document.getElementById('tela-loading').classList.add('hidden');
-        
-        // AQUI ESTÁ A CORREÇÃO DO LAYOUT (DE 'flex' PARA 'block')!
         document.getElementById('app-principal').classList.remove('hidden');
         document.getElementById('app-principal').classList.add('block'); 
 
@@ -116,12 +120,75 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// SINCRONIZADOR
 function salvarLocal(recarregarGraficos = true) {
     renderizarTopBar(); renderizarEdital(); renderizarRevisoes();
     if(recarregarGraficos) { renderizarTabelasEListas(); atualizarGraficos(); }
     if(usuarioAtual) { setDoc(doc(db, "usuarios", usuarioAtual.uid), dadosEstudo).catch(e => console.error(e)); }
 }
+
+// ==========================================
+// LÓGICA CORRIGIDA DOS CONCURSOS
+// ==========================================
+
+function mostrarFormConcurso() { 
+    document.getElementById('form-novo-concurso').classList.remove('hidden'); 
+    document.getElementById('form-novo-concurso').classList.add('flex'); 
+}
+
+function esconderFormConcurso() { 
+    document.getElementById('form-novo-concurso').classList.add('hidden'); 
+    document.getElementById('form-novo-concurso').classList.remove('flex'); 
+}
+
+function adicionarConcurso() { 
+    const nome = document.getElementById('novo-concurso-nome').value.trim(); 
+    const data = document.getElementById('novo-concurso-data').value; 
+    
+    if(!nome) {
+        alert('Por favor, preencha o Nome do Concurso.');
+        return;
+    }
+    
+    const id = Date.now(); 
+    dadosEstudo.concursos.push({ id: id, nome: nome, data: data || "" }); 
+    dadosEstudo.concursoAtivo = id; 
+    
+    document.getElementById('novo-concurso-nome').value = ''; 
+    document.getElementById('novo-concurso-data').value = ''; 
+    esconderFormConcurso(); 
+    salvarLocal(true); 
+    alert('Concurso adicionado com sucesso!');
+}
+
+function mudarConcursoAtivo() { 
+    const val = document.getElementById('select-concurso').value;
+    dadosEstudo.concursoAtivo = val ? parseInt(val) : null; 
+    salvarLocal(false); 
+}
+
+function deletarConcursoAtivo() { 
+    if(!dadosEstudo.concursoAtivo) {
+        alert("Nenhum concurso selecionado para apagar.");
+        return;
+    }
+    if(confirm("Deseja apagar este concurso da lista? O progresso global continuará salvo.")) { 
+        dadosEstudo.concursos = dadosEstudo.concursos.filter(c => c.id !== dadosEstudo.concursoAtivo); 
+        dadosEstudo.concursoAtivo = dadosEstudo.concursos.length > 0 ? dadosEstudo.concursos[0].id : null; 
+        salvarLocal(true); 
+    } 
+}
+
+function calcularDiasRestantes(dataStr) { 
+    if(!dataStr) return "--"; 
+    const partes = dataStr.split('-');
+    if(partes.length !== 3) return "--";
+    // Força o fuso horário local correto evitando bug de dias atrasados
+    const dp = new Date(partes[0], partes[1] - 1, partes[2]); 
+    dp.setHours(23, 59, 59); 
+    const diff = dp - new Date(); 
+    return diff < 0 ? "0" : Math.ceil(diff / (1000 * 60 * 60 * 24)); 
+}
+
 
 // ==========================================
 // RESTANTE DO CÓDIGO DO APP
@@ -143,13 +210,6 @@ function registrarAtividade(minAdd=0, acAdd=0, erAdd=0, pagAdd=0, iMat="") {
     const ult = dadosEstudo.ofensiva.ultimaData;
     if (ult !== hjStr) { if (ult) { const diff = Math.ceil(Math.abs(parseDateLocal(hjStr) - parseDateLocal(ult)) / (1000 * 60 * 60 * 24)); if (diff === 1) dadosEstudo.ofensiva.dias++; else dadosEstudo.ofensiva.dias = 1; } else dadosEstudo.ofensiva.dias = 1; dadosEstudo.ofensiva.ultimaData = hjStr; }
 }
-
-function mostrarFormConcurso() { document.getElementById('form-novo-concurso').classList.remove('hidden'); document.getElementById('form-novo-concurso').classList.add('flex'); }
-function esconderFormConcurso() { document.getElementById('form-novo-concurso').classList.add('hidden'); document.getElementById('form-novo-concurso').classList.remove('flex'); }
-function adicionarConcurso() { const nome = document.getElementById('novo-concurso-nome').value.trim(); const data = document.getElementById('novo-concurso-data').value; if(nome && data) { const id = Date.now(); dadosEstudo.concursos.push({ id, nome, data }); dadosEstudo.concursoAtivo = id; document.getElementById('novo-concurso-nome').value = ''; document.getElementById('novo-concurso-data').value = ''; esconderFormConcurso(); salvarLocal(true); } else alert('Preencha nome e data.'); }
-function mudarConcursoAtivo() { dadosEstudo.concursoAtivo = parseInt(document.getElementById('select-concurso').value); salvarLocal(false); }
-function deletarConcursoAtivo() { if(dadosEstudo.concursoAtivo && confirm("Deseja apagar este concurso da lista?")) { dadosEstudo.concursos = dadosEstudo.concursos.filter(c => c.id !== dadosEstudo.concursoAtivo); dadosEstudo.concursoAtivo = dadosEstudo.concursos.length > 0 ? dadosEstudo.concursos[0].id : null; salvarLocal(true); } }
-function calcularDiasRestantes(dataStr) { if(!dataStr) return "--"; const dp = new Date(dataStr); dp.setHours(23, 59, 59); const diff = dp - new Date(); return diff < 0 ? "0" : Math.ceil(diff / (1000 * 60 * 60 * 24)); }
 
 let pomoTempoRestante = 25 * 60; let pomoInterval; let pomoRodando = false; let pomoEmFoco = true;
 function aplicarConfigPomo() { if(!pomoRodando) { pomoTempoRestante = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; atualizarDisplayPomo(); } }
@@ -194,12 +254,33 @@ function agendarRevisoes(mat, sub) { const hoje = new Date(); dadosEstudo.interv
 function concluirRevisao(id) { dadosEstudo.revisoes = dadosEstudo.revisoes.filter(r => r.id !== id); registrarAtividade(0,0,0,0); salvarLocal(false); }
 function excluirRevisao(id) { if(confirm("Apagar revisão?")) { dadosEstudo.revisoes = dadosEstudo.revisoes.filter(r => r.id !== id); salvarLocal(false); } }
 
+function exportarBackup() { const dl = document.createElement('a'); dl.setAttribute("href", "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dadosEstudo))); dl.setAttribute("download", "estudopro_backup.json"); document.body.appendChild(dl); dl.click(); dl.remove(); }
+function importarBackup(e) { const r = new FileReader(); r.onload = function(evt) { try { const imp = JSON.parse(evt.target.result); if(imp.materias) { dadosEstudo = imp; salvarLocal(true); alert("Backup Restaurado! Os dados já foram enviados para a nuvem."); } } catch (err) { alert("Erro no arquivo."); } }; r.readAsText(e.target.files[0]); }
+
 // RENDERIZAÇÃO
 function renderizarTopBar() {
     const selectConc = document.getElementById('select-concurso'); const dataDisp = document.getElementById('display-concurso-data'); const diasDisp = document.getElementById('dias-restantes');
     selectConc.innerHTML = '<option value="" class="text-gray-800">Selecione uma prova...</option>';
-    dadosEstudo.concursos.forEach(c => { selectConc.innerHTML += `<option value="${c.id}" class="text-gray-800">${c.nome}</option>`; });
-    if(dadosEstudo.concursoAtivo) { selectConc.value = dadosEstudo.concursoAtivo; const conc = dadosEstudo.concursos.find(c => c.id === dadosEstudo.concursoAtivo); if(conc) { const dp = conc.data.split('-'); dataDisp.innerText = `${dp[2]}/${dp[1]}/${dp[0]}`; diasDisp.innerText = calcularDiasRestantes(conc.data); } } else { dataDisp.innerText = '--/--/----'; diasDisp.innerText = '--'; }
+    
+    if(dadosEstudo.concursos) {
+        dadosEstudo.concursos.forEach(c => { selectConc.innerHTML += `<option value="${c.id}" class="text-gray-800">${c.nome}</option>`; });
+    }
+    
+    if(dadosEstudo.concursoAtivo) { 
+        selectConc.value = dadosEstudo.concursoAtivo; 
+        const conc = dadosEstudo.concursos.find(c => c.id === dadosEstudo.concursoAtivo); 
+        if(conc) { 
+            if(conc.data) {
+                const dp = conc.data.split('-'); 
+                dataDisp.innerText = `${dp[2]}/${dp[1]}/${dp[0]}`; 
+                diasDisp.innerText = calcularDiasRestantes(conc.data); 
+            } else {
+                dataDisp.innerText = 'Sem data'; 
+                diasDisp.innerText = '--';
+            }
+        } 
+    } else { dataDisp.innerText = '--/--/----'; diasDisp.innerText = '--'; }
+
     document.getElementById('config-revisoes-input').value = dadosEstudo.intervalosRevisao.join(', ');
     document.getElementById('display-ofensiva').innerText = dadosEstudo.ofensiva.dias; document.getElementById('display-pomodoros').innerText = dadosEstudo.pomodorosRealizados; document.getElementById('display-paginas').innerText = dadosEstudo.paginasLidas; document.getElementById('display-questoes-totais').innerText = dadosEstudo.questoesGerais.acertos + dadosEstudo.questoesGerais.erros; const h = Math.floor(dadosEstudo.tempoTotal / 60); const m = dadosEstudo.tempoTotal % 60; document.getElementById('display-tempo').innerText = `${h}h ${m}m`;
     
@@ -219,7 +300,9 @@ function renderizarEdital() {
         listaEd.innerHTML += `<div class="border rounded-xl p-4 bg-white mb-4 shadow-sm border-l-4 border-l-indigo-400 transicao-suave"><div class="flex justify-between items-center mb-2"><div class="flex-1 cursor-pointer flex items-center gap-2" onclick="alternarExpandirMateria(${iMat})"><i class="fa-solid ${iconDir} text-gray-400 hover:text-indigo-600 w-4"></i><h3 class="font-bold text-gray-800">${mat.nome} <span class="text-xs font-normal text-indigo-500 ml-2 bg-indigo-50 px-2 py-1 rounded"><i class="fa-solid fa-clock"></i> ${tFormat}</span></h3> </div><button onclick="deletarMateria(${iMat})" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div><div class="w-full bg-gray-100 rounded-full h-2 mb-3"><div class="bg-indigo-500 h-2 rounded-full" style="width: ${pctEd}%"></div></div><div class="${displaySub} transicao-suave"><div class="flex gap-2 mb-2 ml-4"><input type="text" id="novo-subtema-${iMat}" placeholder="Adicionar tópico..." class="text-sm p-1 bg-gray-50 border rounded flex-1"><button onclick="adicionarSubtema(${iMat})" class="bg-gray-200 px-2 rounded hover:bg-gray-300 text-sm font-bold">Add</button></div><div class="max-h-64 overflow-y-auto scroll-custom">${subs}</div></div></div>`;
     });
 }
+
 function renderizarRevisoes() { const lr = document.getElementById('lista-revisoes'); lr.innerHTML = dadosEstudo.revisoes.length === 0 ? "<p class='text-gray-500 text-sm'>Tudo em dia!</p>" : ""; dadosEstudo.revisoes.forEach(r => { const [a, m, d] = r.dataAgendada.split('-'); lr.innerHTML += `<div class="bg-white p-3 rounded-lg border-l-4 border-orange-400 shadow-sm flex justify-between items-center mb-2"><div><p class="text-xs text-orange-600 font-bold uppercase">${r.tipo} - ${d}/${m}/${a}</p><p class="font-bold text-gray-800 text-sm">${r.materia}</p> <p class="text-gray-500 text-xs truncate w-32 md:w-48">${r.subtema}</p></div><div class="flex gap-1"><button onclick="concluirRevisao(${r.id})" class="text-green-500 hover:text-green-700 p-2"><i class="fa-solid fa-check-circle text-xl"></i></button><button onclick="excluirRevisao(${r.id})" class="text-gray-400 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button></div></div>`; }); }
+
 function renderizarTabelasEListas() {
     const listaPdfs = document.getElementById('lista-pdfs'); listaPdfs.innerHTML = dadosEstudo.pdfs.length === 0 ? "<p class='text-gray-400 text-sm'>Nenhum material.</p>" : ""; dadosEstudo.pdfs.forEach(p => { let pct = p.totalPaginas > 0 ? Math.round((p.lidas / p.totalPaginas) * 100) : 0; let lHtml = p.link ? `<a href="${p.link}" target="_blank" class="text-blue-500 hover:underline text-xs">Abrir PDF</a>` : ``; listaPdfs.innerHTML += `<div class="border rounded p-3 bg-white shadow-sm border-l-4 border-red-400"><div class="flex justify-between items-start mb-2"><div><p class="font-bold text-gray-800 text-sm">${p.nome}</p>${lHtml}</div><button onclick="deletarPdf(${p.id})" class="text-gray-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div><div class="flex justify-between text-xs text-gray-500 mb-1 font-bold"><span>Lidas: ${p.lidas}/${p.totalPaginas}</span> <span>Pág. ${p.ultimaPagina}</span></div><div class="w-full bg-gray-200 rounded-full h-1.5 mb-3"><div class="bg-red-500 h-1.5 rounded-full" style="width: ${pct}%"></div></div><div class="flex items-center gap-1 text-xs"><input type="number" id="pdf-ini-${p.id}" placeholder="Início" class="border p-1 w-12 rounded text-center"><span>a</span><input type="number" id="pdf-fim-${p.id}" placeholder="Fim" class="border p-1 w-12 rounded text-center"><button onclick="atualizarLeituraPdf(${p.id})" class="bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200 flex-1">+ Reg.</button></div></div>`; });
     const selMatQ = document.getElementById('select-materia-questoes'); selMatQ.innerHTML = '<option value="">Selecione...</option>'; const selMatT = document.getElementById('select-materia-tempo'); selMatT.innerHTML = '<option value="">Geral (Sem Matéria)</option>'; const tabQ = document.getElementById('tabela-questoes'); tabQ.innerHTML = "";
