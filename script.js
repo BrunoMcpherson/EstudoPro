@@ -23,7 +23,8 @@ let dadosEstudo = {
     ofensiva: { dias: 0, ultimaData: null }, questoesGerais: { acertos: 0, erros: 0 },
     historicoDias: {}, intervalosRevisao: [1, 7, 30], pdfs: [], concursos: [], concursoAtivo: null,
     perfil: { nome: "", idade: "", telefone: "", email: "" },
-    configRevisaoAuto: true
+    configRevisaoAuto: true,
+    darkMode: false // Variável do Modo Noturno
 };
 
 let chartGeral = null, chartMaterias = null, chartEvolucao = null, chartTempoMat = null;
@@ -39,6 +40,7 @@ function validarEstruturaDados() {
     dadosEstudo.historicoDias = dadosEstudo.historicoDias || {}; dadosEstudo.intervalosRevisao = dadosEstudo.intervalosRevisao || [1, 7, 30];
     dadosEstudo.ofensiva = dadosEstudo.ofensiva || { dias: 0, ultimaData: null }; dadosEstudo.questoesGerais = dadosEstudo.questoesGerais || { acertos: 0, erros: 0 };
     if(dadosEstudo.configRevisaoAuto === undefined) dadosEstudo.configRevisaoAuto = true;
+    if(dadosEstudo.darkMode === undefined) dadosEstudo.darkMode = false;
     if(dadosEstudo.concurso && dadosEstudo.concurso.nome) { const idNovo = Date.now(); dadosEstudo.concursos.push({ id: idNovo, nome: dadosEstudo.concurso.nome, data: dadosEstudo.concurso.data }); dadosEstudo.concursoAtivo = idNovo; delete dadosEstudo.concurso; salvarLocal(false); }
 }
 
@@ -47,7 +49,7 @@ onAuthStateChanged(auth, async (user) => {
         usuarioAtual = user; document.getElementById('tela-login').classList.add('hidden'); document.getElementById('tela-loading').classList.remove('hidden');
         try { const docRef = doc(db, "usuarios", usuarioAtual.uid); const docSnap = await getDoc(docRef); if (docSnap.exists()) { dadosEstudo = { ...dadosEstudo, ...docSnap.data() }; validarEstruturaDados(); } else { await setDoc(docRef, dadosEstudo); } } catch(e) { console.error(e); }
         document.getElementById('tela-loading').classList.add('hidden'); document.getElementById('app-principal').classList.remove('hidden'); document.getElementById('app-principal').classList.add('block'); 
-        checarOfensivaOnLoad(); aplicarConfigPomo(); atualizarDisplayCrono(); atualizarInterface(); atualizarGraficos();
+        aplicarDarkMode(); checarOfensivaOnLoad(); aplicarConfigPomo(); atualizarDisplayCrono(); atualizarInterface(); atualizarGraficos();
     } else {
         usuarioAtual = null; document.getElementById('tela-login').classList.remove('hidden'); document.getElementById('app-principal').classList.add('hidden'); document.getElementById('app-principal').classList.remove('block');
     }
@@ -57,6 +59,17 @@ function salvarLocal(recarregarGraficos = true) {
     renderizarTopBar(); renderizarEdital(); renderizarRevisoes();
     if(recarregarGraficos) { renderizarTabelasEListas(); atualizarGraficos(); }
     if(usuarioAtual) { setDoc(doc(db, "usuarios", usuarioAtual.uid), dadosEstudo).catch(e => console.error(e)); }
+}
+
+// MODO NOTURNO
+function toggleDarkMode() {
+    dadosEstudo.darkMode = !dadosEstudo.darkMode;
+    aplicarDarkMode();
+    salvarLocal(true); // Recarrega para atualizar os gráficos
+}
+function aplicarDarkMode() {
+    if(dadosEstudo.darkMode) { document.documentElement.classList.add('dark'); } 
+    else { document.documentElement.classList.remove('dark'); }
 }
 
 function mostrarFormConcurso() { document.getElementById('form-novo-concurso').classList.remove('hidden'); document.getElementById('form-novo-concurso').classList.add('flex'); }
@@ -102,13 +115,10 @@ function iniciarPomodoro(isFoco) {
     if (pomoRodando) return; 
     const matId = document.getElementById('select-materia-tempo').value;
     if (matId === "" && isFoco) return alert("Selecione uma matéria específica para focar!");
-
     pomoEmFoco = isFoco; const tFoco = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; const tPausa = (parseInt(document.getElementById('cfg-pomo-pausa').value) || 5) * 60;
     if(pomoTempoRestante === 0 || (pomoTempoRestante === tFoco) || (pomoTempoRestante === tPausa)) { pomoTempoRestante = isFoco ? tFoco : tPausa; }
-    
     dataAlvoPomo = Date.now() + (pomoTempoRestante * 1000); 
     pomoRodando = true; 
-    
     pomoInterval = setInterval(() => {
         pomoTempoRestante = Math.round((dataAlvoPomo - Date.now()) / 1000);
         if (pomoTempoRestante <= 0) { 
@@ -164,8 +174,8 @@ function excluirRevisao(id) { if(confirm("Apagar revisão?")) { dadosEstudo.revi
 
 function renderizarTopBar() {
     const selectConc = document.getElementById('select-concurso'); const dataDisp = document.getElementById('display-concurso-data'); const diasDisp = document.getElementById('dias-restantes');
-    selectConc.innerHTML = '<option value="" class="text-gray-800">Selecione uma prova...</option>';
-    if(dadosEstudo.concursos) { dadosEstudo.concursos.forEach(c => { selectConc.innerHTML += `<option value="${c.id}" class="text-gray-800">${c.nome}</option>`; }); }
+    selectConc.innerHTML = '<option value="" class="text-gray-800 dark:text-white">Selecione uma prova...</option>';
+    if(dadosEstudo.concursos) { dadosEstudo.concursos.forEach(c => { selectConc.innerHTML += `<option value="${c.id}" class="text-gray-800 dark:text-white">${c.nome}</option>`; }); }
     if(dadosEstudo.concursoAtivo) { selectConc.value = dadosEstudo.concursoAtivo; const conc = dadosEstudo.concursos.find(c => c.id === dadosEstudo.concursoAtivo); if(conc) { if(conc.data) { const dp = conc.data.split('-'); dataDisp.innerText = `${dp[2]}/${dp[1]}/${dp[0]}`; diasDisp.innerText = calcularDiasRestantes(conc.data); } else { dataDisp.innerText = 'Sem data'; diasDisp.innerText = '--'; } } } else { dataDisp.innerText = '--/--/----'; diasDisp.innerText = '--'; }
     document.getElementById('config-revisoes-input').value = dadosEstudo.intervalosRevisao.join(', '); 
     document.getElementById('check-rev-auto').checked = dadosEstudo.configRevisaoAuto;
@@ -173,7 +183,7 @@ function renderizarTopBar() {
     const cal = document.getElementById('calendario-grid'); cal.innerHTML = ''; const hj = new Date(); document.getElementById('mes-atual-label').innerText = hj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
     const a = hj.getFullYear(); const mes = hj.getMonth(); const pD = new Date(a, mes, 1).getDay(); const dM = new Date(a, mes + 1, 0).getDate(); const hjStr = a + '-' + String(mes+1).padStart(2,'0') + '-' + String(hj.getDate()).padStart(2,'0');
     for(let i=0; i<pD; i++) cal.innerHTML += `<div></div>`;
-    for(let d=1; d<=dM; d++) { const dataStr = `${a}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const est = dadosEstudo.historicoDias[dataStr]; let cls = 'bg-gray-100 rounded text-gray-400'; let title = `${d}/${mes+1} - Sem estudos`; if (est && (est.minutos > 0 || est.acertos > 0 || est.paginas > 0)) { cls = 'bg-green-500 text-white rounded font-bold shadow-sm'; title = `${d}/${mes+1}: ${est.minutos}min | ${est.acertos+est.erros}q | ${est.paginas}pág`; } else if (dataStr === hjStr) { cls = 'bg-indigo-100 text-indigo-800 rounded font-bold border border-indigo-300'; title = `Hoje!`; } cal.innerHTML += `<div class="p-2 cursor-help transition hover:opacity-80 ${cls}" title="${title}">${d}</div>`; }
+    for(let d=1; d<=dM; d++) { const dataStr = `${a}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const est = dadosEstudo.historicoDias[dataStr]; let cls = 'bg-gray-100 dark:bg-gray-700 rounded text-gray-400 dark:text-gray-500'; let title = `${d}/${mes+1} - Sem estudos`; if (est && (est.minutos > 0 || est.acertos > 0 || est.paginas > 0)) { cls = 'bg-green-500 text-white rounded font-bold shadow-sm'; title = `${d}/${mes+1}: ${est.minutos}min | ${est.acertos+est.erros}q | ${est.paginas}pág`; } else if (dataStr === hjStr) { cls = 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded font-bold border border-indigo-300 dark:border-indigo-700'; title = `Hoje!`; } cal.innerHTML += `<div class="p-2 cursor-help transition hover:opacity-80 ${cls}" title="${title}">${d}</div>`; }
 }
 
 function renderizarEdital() {
@@ -182,18 +192,22 @@ function renderizarEdital() {
         const isExp = mat.expandido === undefined ? true : mat.expandido; const iconDir = isExp ? 'fa-chevron-up' : 'fa-chevron-down'; const displaySub = isExp ? 'block' : 'hidden';
         const ht = Math.floor((mat.tempo || 0) / 60); const mt = (mat.tempo || 0) % 60; let tFormat = mat.tempo ? (ht > 0 ? ht+'h ' : '') + mt+'m' : '0m';
         const concl = mat.subtemas.filter(s => s.concluido).length; const pctEd = mat.subtemas.length === 0 ? 0 : Math.round((concl / mat.subtemas.length) * 100);
-        let subs = mat.subtemas.map((s, iSub) => `<div class="flex justify-between items-center mt-2 ml-4 p-1 hover:bg-gray-50 rounded group"><div class="flex items-center gap-2 flex-1"><input type="checkbox" ${s.concluido ? 'checked' : ''} onchange="alternarConclusao(${iMat}, ${iSub})" class="w-4 h-4 text-indigo-600 cursor-pointer"><span class="${s.concluido ? 'line-through text-gray-400' : 'text-gray-700'} text-sm">${s.nome}</span></div><button onclick="deletarSubtema(${iMat}, ${iSub})" class="text-gray-300 hover:text-red-500 hidden group-hover:block transition" title="Apagar Tópico"><i class="fa-solid fa-trash text-xs"></i></button></div>`).join('');
-        listaEd.innerHTML += `<div class="border rounded-xl p-4 bg-white mb-4 shadow-sm border-l-4 border-l-indigo-400 transicao-suave"><div class="flex justify-between items-center mb-2"><div class="flex-1 cursor-pointer flex items-center gap-2" onclick="alternarExpandirMateria(${iMat})"><i class="fa-solid ${iconDir} text-gray-400 hover:text-indigo-600 w-4"></i><h3 class="font-bold text-gray-800">${mat.nome} <span class="text-xs font-normal text-indigo-500 ml-2 bg-indigo-50 px-2 py-1 rounded"><i class="fa-solid fa-clock"></i> ${tFormat}</span></h3> </div><button onclick="deletarMateria(${iMat})" class="text-gray-400 hover:text-red-500" title="Apagar Matéria"><i class="fa-solid fa-trash"></i></button></div><div class="w-full bg-gray-100 rounded-full h-2 mb-3"><div class="bg-indigo-500 h-2 rounded-full" style="width: ${pctEd}%"></div></div><div class="${displaySub} transicao-suave"><div class="flex gap-2 mb-2 ml-4"><input type="text" id="novo-subtema-${iMat}" placeholder="Adicionar tópico..." class="text-sm p-1 bg-gray-50 border rounded flex-1"><button onclick="adicionarSubtema(${iMat})" class="bg-gray-200 px-2 rounded hover:bg-gray-300 text-sm font-bold">Add</button></div><div class="max-h-64 overflow-y-auto scroll-custom">${subs}</div></div></div>`;
+        let subs = mat.subtemas.map((s, iSub) => `<div class="flex justify-between items-center mt-2 ml-4 p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded group"><div class="flex items-center gap-2 flex-1"><input type="checkbox" ${s.concluido ? 'checked' : ''} onchange="alternarConclusao(${iMat}, ${iSub})" class="w-4 h-4 text-indigo-600 cursor-pointer"><span class="${s.concluido ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'} text-sm">${s.nome}</span></div><button onclick="deletarSubtema(${iMat}, ${iSub})" class="text-gray-300 dark:text-gray-600 hover:text-red-500 hidden group-hover:block transition" title="Apagar Tópico"><i class="fa-solid fa-trash text-xs"></i></button></div>`).join('');
+        listaEd.innerHTML += `<div class="border dark:border-gray-700 rounded-xl p-4 bg-white dark:bg-gray-800 mb-4 shadow-sm border-l-4 border-l-indigo-400 transicao-suave"><div class="flex justify-between items-center mb-2"><div class="flex-1 cursor-pointer flex items-center gap-2" onclick="alternarExpandirMateria(${iMat})"><i class="fa-solid ${iconDir} text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 w-4"></i><h3 class="font-bold text-gray-800 dark:text-white">${mat.nome} <span class="text-xs font-normal text-indigo-500 dark:text-indigo-300 ml-2 bg-indigo-50 dark:bg-indigo-900/50 px-2 py-1 rounded"><i class="fa-solid fa-clock"></i> ${tFormat}</span></h3> </div><button onclick="deletarMateria(${iMat})" class="text-gray-400 hover:text-red-500" title="Apagar Matéria"><i class="fa-solid fa-trash"></i></button></div><div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 mb-3"><div class="bg-indigo-500 h-2 rounded-full" style="width: ${pctEd}%"></div></div><div class="${displaySub} transicao-suave"><div class="flex gap-2 mb-2 ml-4"><input type="text" id="novo-subtema-${iMat}" placeholder="Adicionar tópico..." class="text-sm p-1 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded flex-1"><button onclick="adicionarSubtema(${iMat})" class="bg-gray-200 dark:bg-gray-600 dark:text-white px-2 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm font-bold">Add</button></div><div class="max-h-64 overflow-y-auto scroll-custom">${subs}</div></div></div>`;
     });
 }
-function renderizarRevisoes() { const lr = document.getElementById('lista-revisoes'); lr.innerHTML = dadosEstudo.revisoes.length === 0 ? "<p class='text-gray-500 text-sm'>Tudo em dia!</p>" : ""; dadosEstudo.revisoes.forEach(r => { const [a, m, d] = r.dataAgendada.split('-'); lr.innerHTML += `<div class="bg-white p-3 rounded-lg border-l-4 border-orange-400 shadow-sm flex justify-between items-center mb-2"><div><p class="text-xs text-orange-600 font-bold uppercase">${r.tipo} - ${d}/${m}/${a}</p><p class="font-bold text-gray-800 text-sm">${r.materia}</p> <p class="text-gray-500 text-xs truncate w-32 md:w-48">${r.subtema}</p></div><div class="flex gap-1"><button onclick="concluirRevisao(${r.id})" class="text-green-500 hover:text-green-700 p-2"><i class="fa-solid fa-check-circle text-xl"></i></button><button onclick="excluirRevisao(${r.id})" class="text-gray-400 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button></div></div>`; }); }
+function renderizarRevisoes() { const lr = document.getElementById('lista-revisoes'); lr.innerHTML = dadosEstudo.revisoes.length === 0 ? "<p class='text-gray-500 dark:text-gray-400 text-sm'>Tudo em dia!</p>" : ""; dadosEstudo.revisoes.forEach(r => { const [a, m, d] = r.dataAgendada.split('-'); lr.innerHTML += `<div class="bg-white dark:bg-gray-700 p-3 rounded-lg border-l-4 border-orange-400 shadow-sm flex justify-between items-center mb-2"><div><p class="text-xs text-orange-600 dark:text-orange-400 font-bold uppercase">${r.tipo} - ${d}/${m}/${a}</p><p class="font-bold text-gray-800 dark:text-white text-sm">${r.materia}</p> <p class="text-gray-500 dark:text-gray-300 text-xs truncate w-32 md:w-48">${r.subtema}</p></div><div class="flex gap-1"><button onclick="concluirRevisao(${r.id})" class="text-green-500 hover:text-green-700 dark:hover:text-green-400 p-2"><i class="fa-solid fa-check-circle text-xl"></i></button><button onclick="excluirRevisao(${r.id})" class="text-gray-400 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button></div></div>`; }); }
 function renderizarTabelasEListas() {
-    const listaPdfs = document.getElementById('lista-pdfs'); listaPdfs.innerHTML = dadosEstudo.pdfs.length === 0 ? "<p class='text-gray-400 text-sm'>Nenhum material.</p>" : ""; dadosEstudo.pdfs.forEach(p => { let pct = p.totalPaginas > 0 ? Math.round((p.lidas / p.totalPaginas) * 100) : 0; let lHtml = p.link ? `<a href="${p.link}" target="_blank" class="text-blue-500 hover:underline text-xs">Abrir PDF</a>` : ``; listaPdfs.innerHTML += `<div class="border rounded p-3 bg-white shadow-sm border-l-4 border-red-400"><div class="flex justify-between items-start mb-2"><div><p class="font-bold text-gray-800 text-sm">${p.nome}</p>${lHtml}</div><button onclick="deletarPdf(${p.id})" class="text-gray-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div><div class="flex justify-between text-xs text-gray-500 mb-1 font-bold"><span>Lidas: ${p.lidas}/${p.totalPaginas}</span> <span>Pág. ${p.ultimaPagina}</span></div><div class="w-full bg-gray-200 rounded-full h-1.5 mb-3"><div class="bg-red-500 h-1.5 rounded-full" style="width: ${pct}%"></div></div><div class="flex items-center gap-1 text-xs"><input type="number" id="pdf-ini-${p.id}" placeholder="Início" class="border p-1 w-12 rounded text-center"><span>a</span><input type="number" id="pdf-fim-${p.id}" placeholder="Fim" class="border p-1 w-12 rounded text-center"><button onclick="atualizarLeituraPdf(${p.id})" class="bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200 flex-1">+ Reg.</button></div></div>`; });
+    const listaPdfs = document.getElementById('lista-pdfs'); listaPdfs.innerHTML = dadosEstudo.pdfs.length === 0 ? "<p class='text-gray-400 text-sm'>Nenhum material.</p>" : ""; dadosEstudo.pdfs.forEach(p => { let pct = p.totalPaginas > 0 ? Math.round((p.lidas / p.totalPaginas) * 100) : 0; let lHtml = p.link ? `<a href="${p.link}" target="_blank" class="text-blue-500 hover:underline text-xs">Abrir PDF</a>` : ``; listaPdfs.innerHTML += `<div class="border dark:border-gray-700 rounded p-3 bg-white dark:bg-gray-700 shadow-sm border-l-4 border-red-400"><div class="flex justify-between items-start mb-2"><div><p class="font-bold text-gray-800 dark:text-white text-sm">${p.nome}</p>${lHtml}</div><button onclick="deletarPdf(${p.id})" class="text-gray-300 dark:text-gray-500 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div><div class="flex justify-between text-xs text-gray-500 dark:text-gray-300 mb-1 font-bold"><span>Lidas: ${p.lidas}/${p.totalPaginas}</span> <span>Pág. ${p.ultimaPagina}</span></div><div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-3"><div class="bg-red-500 h-1.5 rounded-full" style="width: ${pct}%"></div></div><div class="flex items-center gap-1 text-xs"><input type="number" id="pdf-ini-${p.id}" placeholder="Início" class="border dark:border-gray-600 dark:bg-gray-800 dark:text-white p-1 w-12 rounded text-center"><span class="dark:text-gray-300">a</span><input type="number" id="pdf-fim-${p.id}" placeholder="Fim" class="border dark:border-gray-600 dark:bg-gray-800 dark:text-white p-1 w-12 rounded text-center"><button onclick="atualizarLeituraPdf(${p.id})" class="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 px-2 py-1 rounded font-bold hover:bg-green-200 dark:hover:bg-green-900 flex-1">+ Reg.</button></div></div>`; });
     const selMatQ = document.getElementById('select-materia-questoes'); selMatQ.innerHTML = '<option value="">Selecione...</option>'; const selMatT = document.getElementById('select-materia-tempo'); selMatT.innerHTML = '<option value="" disabled selected>Selecione a matéria...</option>'; const tabQ = document.getElementById('tabela-questoes'); tabQ.innerHTML = "";
-    dadosEstudo.materias.forEach((mat, iMat) => { selMatQ.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; selMatT.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; if(mat.questoes) { const tM = mat.questoes.acertos + mat.questoes.erros; const pctM = tM === 0 ? 0 : Math.round((mat.questoes.acertos / tM)*100); tabQ.innerHTML += `<tr class="border-b hover:bg-gray-100"><td class="py-2 font-bold text-gray-700">${mat.nome}</td> <td class="py-2 text-center text-gray-500">${tM}</td><td class="py-2 text-center font-bold text-green-600">${mat.questoes.acertos}</td> <td class="py-2 text-center font-bold text-red-500">${mat.questoes.erros}</td><td class="py-2 text-right font-black ${pctM >= 80 ? 'text-green-600' : (pctM>=60 ? 'text-yellow-600' : 'text-red-500')}">${pctM}%</td> </tr>`; } });
+    dadosEstudo.materias.forEach((mat, iMat) => { selMatQ.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; selMatT.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; if(mat.questoes) { const tM = mat.questoes.acertos + mat.questoes.erros; const pctM = tM === 0 ? 0 : Math.round((mat.questoes.acertos / tM)*100); tabQ.innerHTML += `<tr class="border-b dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50"><td class="py-2 font-bold text-gray-700 dark:text-gray-200">${mat.nome}</td> <td class="py-2 text-center text-gray-500 dark:text-gray-400">${tM}</td><td class="py-2 text-center font-bold text-green-600 dark:text-green-400">${mat.questoes.acertos}</td> <td class="py-2 text-center font-bold text-red-500 dark:text-red-400">${mat.questoes.erros}</td><td class="py-2 text-right font-black ${pctM >= 80 ? 'text-green-600 dark:text-green-400' : (pctM>=60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400')}">${pctM}%</td> </tr>`; } });
 }
 
 function atualizarGraficos() {
+    // Define a cor base dos textos dos gráficos baseado no Modo Noturno
+    const textColor = dadosEstudo.darkMode ? '#9ca3af' : '#6b7280';
+    Chart.defaults.color = textColor;
+
     let totQ = dadosEstudo.questoesGerais.acertos + dadosEstudo.questoesGerais.erros; 
     if(chartGeral) chartGeral.destroy(); 
     chartGeral = new Chart(document.getElementById('graficoGeral').getContext('2d'), { 
@@ -203,6 +217,8 @@ function atualizarGraficos() {
             responsive: true, maintainAspectRatio: false, cutout: '70%', 
             plugins: { 
                 legend: { display: false }, 
+                // TÍTULO ADICIONADO AQUI
+                title: { display: true, text: 'Geral (Acertos x Erros)', color: textColor, font: { size: 14 } },
                 tooltip: { enabled: totQ>0, callbacks: { label: function(context) { return ' ' + context.label + ': ' + context.parsed + ' questões'; } } } 
             } 
         } 
@@ -218,15 +234,23 @@ function atualizarGraficos() {
     if(chartMaterias) chartMaterias.destroy(); 
     chartMaterias = new Chart(document.getElementById('graficoMaterias').getContext('2d'), { 
         type: 'bar', 
-        data: { labels: labelsM.length > 0 ? labelsM : ['-'], datasets: [{ data: dadosM.length > 0 ? dadosM : [0], backgroundColor: coresM.length > 0 ? coresM : ['#e5e7eb'], borderRadius: 4 }] }, 
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return ' Aproveitamento: ' + context.parsed.y + '%'; } } } } } 
+        data: { labels: labelsM.length > 0 ? labelsM : ['-'], datasets: [{ data: dadosM.length > 0 ? dadosM : [0], backgroundColor: coresM.length > 0 ? coresM : ['#374151'], borderRadius: 4 }] }, 
+        options: { 
+            responsive: true, maintainAspectRatio: false, scales: { y: { max: 100, grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } }, x: { grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } }, 
+            plugins: { 
+                legend: { display: false }, 
+                // TÍTULO ADICIONADO AQUI
+                title: { display: true, text: 'Aproveitamento por Matéria (%)', color: textColor, font: { size: 14 } },
+                tooltip: { callbacks: { label: function(context) { return ' Aproveitamento: ' + context.parsed.y + '%'; } } } 
+            } 
+        } 
     });
 
     if(chartTempoMat) chartTempoMat.destroy(); 
     chartTempoMat = new Chart(document.getElementById('graficoTempoMateria').getContext('2d'), { 
         type: 'bar', 
         data: { labels: labelsT.length > 0 ? labelsT : ['-'], datasets: [{ label: 'Horas', data: dadosT.length > 0 ? dadosT : [0], backgroundColor: '#4f46e5', borderRadius: 4 }] }, 
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return ' Tempo: ' + context.parsed.y + ' hora(s)'; } } } } } 
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } }, x: { grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return ' Tempo: ' + context.parsed.y + ' hora(s)'; } } } } } 
     });
     
     const evoLabels = []; const evoMin = []; const evoQtd = [];
@@ -234,45 +258,9 @@ function atualizarGraficos() {
     if(chartEvolucao) chartEvolucao.destroy(); chartEvolucao = new Chart(document.getElementById('graficoEvolucao').getContext('2d'), { 
         type: 'line', 
         data: { labels: evoLabels, datasets: [ { label: 'Minutos Estudados', data: evoMin, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3 }, { label: 'Questões', data: evoQtd, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3 } ] }, 
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { position: 'top' } } } 
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } }, x: { grid: { color: dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } }, plugins: { legend: { position: 'top', labels: { color: textColor } } } } 
     });
 }
 function atualizarInterface() { renderizarTopBar(); renderizarTabelasEListas(); renderizarEdital(); renderizarRevisoes(); }
 
-window.alternarAuth = alternarAuth; 
-window.fazerLogin = fazerLogin; 
-window.criarConta = criarConta; 
-window.sairConta = sairConta; 
-window.aplicarConfigPomo = aplicarConfigPomo; 
-window.iniciarPomodoro = iniciarPomodoro; 
-window.pausarPomodoroTimer = pausarPomodoroTimer; 
-window.pararPomodoro = pararPomodoro; 
-window.iniciarCrono = iniciarCrono; 
-window.pausarCrono = pausarCrono; 
-window.pararESalvarCrono = pararESalvarCrono; 
-window.mudarAbaTempo = mudarAbaTempo; 
-window.salvarTempoManual = salvarTempoManual; 
-window.resetarPaginas = resetarPaginas; 
-window.resetarQuestoes = resetarQuestoes; 
-window.resetarTempo = resetarTempo; 
-window.resetarPomodoros = resetarPomodoros; 
-window.resetarCalendario = resetarCalendario; 
-window.adicionarMateriaEmMassa = adicionarMateriaEmMassa; 
-window.adicionarSubtema = adicionarSubtema; 
-window.alternarConclusao = alternarConclusao; 
-window.deletarMateria = deletarMateria; 
-window.deletarSubtema = deletarSubtema; 
-window.alternarExpandirMateria = alternarExpandirMateria; 
-window.adicionarPdf = adicionarPdf; 
-window.atualizarLeituraPdf = atualizarLeituraPdf; 
-window.deletarPdf = deletarPdf; 
-window.salvarQuestoes = salvarQuestoes; 
-window.salvarConfigRevisoes = salvarConfigRevisoes; 
-window.concluirRevisao = concluirRevisao; 
-window.excluirRevisao = excluirRevisao; 
-window.mostrarFormConcurso = mostrarFormConcurso; 
-window.esconderFormConcurso = esconderFormConcurso; 
-window.adicionarConcurso = adicionarConcurso; 
-window.mudarConcursoAtivo = mudarConcursoAtivo; 
-window.deletarConcursoAtivo = deletarConcursoAtivo; 
-window.toggleRevisaoAuto = toggleRevisaoAuto;
+window.alternarAuth = alternarAuth; window.fazerLogin = fazerLogin; window.criarConta = criarConta; window.sairConta = sairConta; window.aplicarConfigPomo = aplicarConfigPomo; window.iniciarPomodoro = iniciarPomodoro; window.pausarPomodoroTimer = pausarPomodoroTimer; window.pararPomodoro = pararPomodoro; window.iniciarCrono = iniciarCrono; window.pausarCrono = pausarCrono; window.pararESalvarCrono = pararESalvarCrono; window.mudarAbaTempo = mudarAbaTempo; window.salvarTempoManual = salvarTempoManual; window.resetarPaginas = resetarPaginas; window.resetarQuestoes = resetarQuestoes; window.resetarTempo = resetarTempo; window.resetarPomodoros = resetarPomodoros; window.resetarCalendario = resetarCalendario; window.adicionarMateriaEmMassa = adicionarMateriaEmMassa; window.adicionarSubtema = adicionarSubtema; window.alternarConclusao = alternarConclusao; window.deletarMateria = deletarMateria; window.deletarSubtema = deletarSubtema; window.alternarExpandirMateria = alternarExpandirMateria; window.adicionarPdf = adicionarPdf; window.atualizarLeituraPdf = atualizarLeituraPdf; window.deletarPdf = deletarPdf; window.salvarQuestoes = salvarQuestoes; window.salvarConfigRevisoes = salvarConfigRevisoes; window.concluirRevisao = concluirRevisao; window.excluirRevisao = excluirRevisao; window.mostrarFormConcurso = mostrarFormConcurso; window.esconderFormConcurso = esconderFormConcurso; window.adicionarConcurso = adicionarConcurso; window.mudarConcursoAtivo = mudarConcursoAtivo; window.deletarConcursoAtivo = deletarConcursoAtivo; window.toggleRevisaoAuto = toggleRevisaoAuto; window.toggleDarkMode = toggleDarkMode;
