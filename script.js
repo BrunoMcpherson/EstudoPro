@@ -1,11 +1,9 @@
 // script.js
 
-// IMPORTAÇÕES DO FIREBASE
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// CHAVES DO FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyDYnsuC9yCjj8eXnOOMiWYW1wGxaowr57s",
   authDomain: "estudopro-69257.firebaseapp.com",
@@ -20,7 +18,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 let usuarioAtual = null;
 
-// ESTRUTURA PADRÃO DOS DADOS
 let dadosEstudo = {
     materias: [], revisoes: [], tempoTotal: 0, pomodorosRealizados: 0, paginasLidas: 0,
     ofensiva: { dias: 0, ultimaData: null }, questoesGerais: { acertos: 0, erros: 0 },
@@ -31,92 +28,48 @@ let dadosEstudo = {
 let chartGeral = null, chartMaterias = null, chartEvolucao = null, chartTempoMat = null;
 
 // ==========================================
-// MÓDULO DE LOGIN E CADASTRO
+// MÓDULO DE LOGIN
 // ==========================================
-
 function exibirMensagemErro(msg) {
     const el = document.getElementById('auth-mensagem');
     el.innerText = msg; el.classList.remove('hidden', 'text-green-500'); el.classList.add('text-red-500', 'block');
 }
-
 function alternarAuth(tela) {
     const login = document.getElementById('form-login'); const cadastro = document.getElementById('form-cadastro'); const sub = document.getElementById('auth-subtitle');
     document.getElementById('auth-mensagem').classList.add('hidden');
     if(tela === 'cadastro') { login.classList.add('hidden'); cadastro.classList.remove('hidden'); sub.innerText = "Crie sua conta para salvar na nuvem"; } 
     else { cadastro.classList.add('hidden'); login.classList.remove('hidden'); sub.innerText = "Acesse sua conta"; }
 }
-
 async function fazerLogin() {
     const email = document.getElementById('login-email').value; const senha = document.getElementById('login-senha').value;
     if(!email || !senha) return exibirMensagemErro("Preencha todos os campos.");
     try { await signInWithEmailAndPassword(auth, email, senha); } catch (error) { exibirMensagemErro("Email ou senha incorretos."); }
 }
-
 async function criarConta() {
     const nome = document.getElementById('cad-nome').value; const idade = document.getElementById('cad-idade').value;
-    const telefone = document.getElementById('cad-telefone').value; const email = document.getElementById('cad-email').value;
-    const senha = document.getElementById('cad-senha').value;
-
+    const telefone = document.getElementById('cad-telefone').value; const email = document.getElementById('cad-email').value; const senha = document.getElementById('cad-senha').value;
     if(!nome || !idade || !telefone || !email || !senha) return exibirMensagemErro("Preencha todos os campos.");
     if(senha.length < 6) return exibirMensagemErro("A senha deve ter no mínimo 6 caracteres.");
-
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
-        dadosEstudo.perfil = { nome, idade, telefone, email };
-        await setDoc(doc(db, "usuarios", userCredential.user.uid), dadosEstudo);
-    } catch (error) { exibirMensagemErro("Erro ao criar conta. Email já existe ou formato inválido."); }
+    try { const userCredential = await createUserWithEmailAndPassword(auth, email, senha); dadosEstudo.perfil = { nome, idade, telefone, email }; await setDoc(doc(db, "usuarios", userCredential.user.uid), dadosEstudo); } 
+    catch (error) { exibirMensagemErro("Erro ao criar conta. Email já existe ou formato inválido."); }
 }
-
 async function sairConta() { await signOut(auth); }
 
-// GARANTE QUE O FIREBASE NÃO QUEBRE A ESTRUTURA DO APP
 function validarEstruturaDados() {
-    dadosEstudo.concursos = dadosEstudo.concursos || [];
-    dadosEstudo.materias = dadosEstudo.materias || [];
-    dadosEstudo.revisoes = dadosEstudo.revisoes || [];
-    dadosEstudo.pdfs = dadosEstudo.pdfs || [];
-    dadosEstudo.historicoDias = dadosEstudo.historicoDias || {};
-    dadosEstudo.intervalosRevisao = dadosEstudo.intervalosRevisao || [1, 7, 30];
-    dadosEstudo.ofensiva = dadosEstudo.ofensiva || { dias: 0, ultimaData: null };
-    dadosEstudo.questoesGerais = dadosEstudo.questoesGerais || { acertos: 0, erros: 0 };
-    
-    // Auto-migração caso o formato antigo de concurso ainda exista na nuvem
-    if(dadosEstudo.concurso && dadosEstudo.concurso.nome) {
-        const idNovo = Date.now();
-        dadosEstudo.concursos.push({ id: idNovo, nome: dadosEstudo.concurso.nome, data: dadosEstudo.concurso.data });
-        dadosEstudo.concursoAtivo = idNovo;
-        delete dadosEstudo.concurso;
-        salvarLocal(false);
-    }
+    dadosEstudo.concursos = dadosEstudo.concursos || []; dadosEstudo.materias = dadosEstudo.materias || []; dadosEstudo.revisoes = dadosEstudo.revisoes || []; dadosEstudo.pdfs = dadosEstudo.pdfs || [];
+    dadosEstudo.historicoDias = dadosEstudo.historicoDias || {}; dadosEstudo.intervalosRevisao = dadosEstudo.intervalosRevisao || [1, 7, 30];
+    dadosEstudo.ofensiva = dadosEstudo.ofensiva || { dias: 0, ultimaData: null }; dadosEstudo.questoesGerais = dadosEstudo.questoesGerais || { acertos: 0, erros: 0 };
+    if(dadosEstudo.concurso && dadosEstudo.concurso.nome) { const idNovo = Date.now(); dadosEstudo.concursos.push({ id: idNovo, nome: dadosEstudo.concurso.nome, data: dadosEstudo.concurso.data }); dadosEstudo.concursoAtivo = idNovo; delete dadosEstudo.concurso; salvarLocal(false); }
 }
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        usuarioAtual = user;
-        document.getElementById('tela-login').classList.add('hidden');
-        document.getElementById('tela-loading').classList.remove('hidden');
-        
-        try {
-            const docRef = doc(db, "usuarios", usuarioAtual.uid);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                dadosEstudo = { ...dadosEstudo, ...docSnap.data() }; 
-                validarEstruturaDados(); // Evita bugs caso venha com formato velho
-            } else {
-                await setDoc(docRef, dadosEstudo); 
-            }
-        } catch(e) { console.error(e); }
-
-        document.getElementById('tela-loading').classList.add('hidden');
-        document.getElementById('app-principal').classList.remove('hidden');
-        document.getElementById('app-principal').classList.add('block'); 
-
+        usuarioAtual = user; document.getElementById('tela-login').classList.add('hidden'); document.getElementById('tela-loading').classList.remove('hidden');
+        try { const docRef = doc(db, "usuarios", usuarioAtual.uid); const docSnap = await getDoc(docRef); if (docSnap.exists()) { dadosEstudo = { ...dadosEstudo, ...docSnap.data() }; validarEstruturaDados(); } else { await setDoc(docRef, dadosEstudo); } } catch(e) { console.error(e); }
+        document.getElementById('tela-loading').classList.add('hidden'); document.getElementById('app-principal').classList.remove('hidden'); document.getElementById('app-principal').classList.add('block'); 
         checarOfensivaOnLoad(); aplicarConfigPomo(); atualizarDisplayCrono(); atualizarInterface(); atualizarGraficos();
     } else {
-        usuarioAtual = null;
-        document.getElementById('tela-login').classList.remove('hidden');
-        document.getElementById('app-principal').classList.add('hidden');
-        document.getElementById('app-principal').classList.remove('block');
+        usuarioAtual = null; document.getElementById('tela-login').classList.remove('hidden'); document.getElementById('app-principal').classList.add('hidden'); document.getElementById('app-principal').classList.remove('block');
     }
 });
 
@@ -127,73 +80,29 @@ function salvarLocal(recarregarGraficos = true) {
 }
 
 // ==========================================
-// LÓGICA CORRIGIDA DOS CONCURSOS
+// CONCURSOS
 // ==========================================
-
-function mostrarFormConcurso() { 
-    document.getElementById('form-novo-concurso').classList.remove('hidden'); 
-    document.getElementById('form-novo-concurso').classList.add('flex'); 
-}
-
-function esconderFormConcurso() { 
-    document.getElementById('form-novo-concurso').classList.add('hidden'); 
-    document.getElementById('form-novo-concurso').classList.remove('flex'); 
-}
-
+function mostrarFormConcurso() { document.getElementById('form-novo-concurso').classList.remove('hidden'); document.getElementById('form-novo-concurso').classList.add('flex'); }
+function esconderFormConcurso() { document.getElementById('form-novo-concurso').classList.add('hidden'); document.getElementById('form-novo-concurso').classList.remove('flex'); }
 function adicionarConcurso() { 
-    const nome = document.getElementById('novo-concurso-nome').value.trim(); 
-    const data = document.getElementById('novo-concurso-data').value; 
-    
-    if(!nome) {
-        alert('Por favor, preencha o Nome do Concurso.');
-        return;
-    }
-    
-    const id = Date.now(); 
-    dadosEstudo.concursos.push({ id: id, nome: nome, data: data || "" }); 
-    dadosEstudo.concursoAtivo = id; 
-    
-    document.getElementById('novo-concurso-nome').value = ''; 
-    document.getElementById('novo-concurso-data').value = ''; 
-    esconderFormConcurso(); 
-    salvarLocal(true); 
-    alert('Concurso adicionado com sucesso!');
+    const nome = document.getElementById('novo-concurso-nome').value.trim(); const data = document.getElementById('novo-concurso-data').value; 
+    if(!nome) return alert('Preencha o Nome do Concurso.');
+    const id = Date.now(); dadosEstudo.concursos.push({ id: id, nome: nome, data: data || "" }); dadosEstudo.concursoAtivo = id; 
+    document.getElementById('novo-concurso-nome').value = ''; document.getElementById('novo-concurso-data').value = ''; esconderFormConcurso(); salvarLocal(true); 
 }
-
-function mudarConcursoAtivo() { 
-    const val = document.getElementById('select-concurso').value;
-    dadosEstudo.concursoAtivo = val ? parseInt(val) : null; 
-    salvarLocal(false); 
-}
-
+function mudarConcursoAtivo() { const val = document.getElementById('select-concurso').value; dadosEstudo.concursoAtivo = val ? parseInt(val) : null; salvarLocal(false); }
 function deletarConcursoAtivo() { 
-    if(!dadosEstudo.concursoAtivo) {
-        alert("Nenhum concurso selecionado para apagar.");
-        return;
-    }
-    if(confirm("Deseja apagar este concurso da lista? O progresso global continuará salvo.")) { 
-        dadosEstudo.concursos = dadosEstudo.concursos.filter(c => c.id !== dadosEstudo.concursoAtivo); 
-        dadosEstudo.concursoAtivo = dadosEstudo.concursos.length > 0 ? dadosEstudo.concursos[0].id : null; 
-        salvarLocal(true); 
-    } 
+    if(!dadosEstudo.concursoAtivo) return alert("Nenhum concurso selecionado.");
+    if(confirm("Deseja apagar este concurso da lista? O progresso global continuará salvo.")) { dadosEstudo.concursos = dadosEstudo.concursos.filter(c => c.id !== dadosEstudo.concursoAtivo); dadosEstudo.concursoAtivo = dadosEstudo.concursos.length > 0 ? dadosEstudo.concursos[0].id : null; salvarLocal(true); } 
 }
-
 function calcularDiasRestantes(dataStr) { 
-    if(!dataStr) return "--"; 
-    const partes = dataStr.split('-');
-    if(partes.length !== 3) return "--";
-    // Força o fuso horário local correto evitando bug de dias atrasados
-    const dp = new Date(partes[0], partes[1] - 1, partes[2]); 
-    dp.setHours(23, 59, 59); 
-    const diff = dp - new Date(); 
-    return diff < 0 ? "0" : Math.ceil(diff / (1000 * 60 * 60 * 24)); 
+    if(!dataStr) return "--"; const partes = dataStr.split('-'); if(partes.length !== 3) return "--";
+    const dp = new Date(partes[0], partes[1] - 1, partes[2]); dp.setHours(23, 59, 59); const diff = dp - new Date(); return diff < 0 ? "0" : Math.ceil(diff / (1000 * 60 * 60 * 24)); 
 }
 
-
 // ==========================================
-// RESTANTE DO CÓDIGO DO APP
+// ATIVIDADE E OFENSIVA
 // ==========================================
-
 function parseDateLocal(dateStr) { const [y, m, d] = dateStr.split('-'); return new Date(y, m - 1, d); }
 function tocarAlarme() { try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); for (let i = 0; i < 3; i++) { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(800, ctx.currentTime + (i * 0.4)); gain.gain.setValueAtTime(1, ctx.currentTime + (i * 0.4)); osc.start(ctx.currentTime + (i * 0.4)); osc.stop(ctx.currentTime + (i * 0.4) + 0.2); } } catch(e) {} }
 
@@ -211,6 +120,66 @@ function registrarAtividade(minAdd=0, acAdd=0, erAdd=0, pagAdd=0, iMat="") {
     if (ult !== hjStr) { if (ult) { const diff = Math.ceil(Math.abs(parseDateLocal(hjStr) - parseDateLocal(ult)) / (1000 * 60 * 60 * 24)); if (diff === 1) dadosEstudo.ofensiva.dias++; else dadosEstudo.ofensiva.dias = 1; } else dadosEstudo.ofensiva.dias = 1; dadosEstudo.ofensiva.ultimaData = hjStr; }
 }
 
+// ==========================================
+// MÓDULO DE GESTÃO DE TEMPO (Pomo/Crono/Manual)
+// ==========================================
+
+// ALTERNAR ABAS (Agora com 3 opções)
+function mudarAbaTempo(aba) { 
+    // Limpa os botões
+    document.getElementById('tab-btn-pomo').classList.remove('tab-active', 'text-gray-400');
+    document.getElementById('tab-btn-crono').classList.remove('tab-active', 'text-gray-400');
+    document.getElementById('tab-btn-manual').classList.remove('tab-active', 'text-gray-400');
+    
+    // Esconde todos os blocos
+    document.getElementById('aba-pomodoro').classList.add('hidden');
+    document.getElementById('aba-cronometro').classList.add('hidden');
+    document.getElementById('aba-manual').classList.add('hidden');
+    
+    // Mostra o bloco selecionado e colore o botão certo
+    if(aba === 'pomo') { 
+        document.getElementById('tab-btn-pomo').classList.add('tab-active'); 
+        document.getElementById('tab-btn-crono').classList.add('text-gray-400'); 
+        document.getElementById('tab-btn-manual').classList.add('text-gray-400'); 
+        document.getElementById('aba-pomodoro').classList.remove('hidden'); 
+    } else if (aba === 'crono') { 
+        document.getElementById('tab-btn-crono').classList.add('tab-active'); 
+        document.getElementById('tab-btn-pomo').classList.add('text-gray-400'); 
+        document.getElementById('tab-btn-manual').classList.add('text-gray-400'); 
+        document.getElementById('aba-cronometro').classList.remove('hidden'); 
+    } else {
+        document.getElementById('tab-btn-manual').classList.add('tab-active'); 
+        document.getElementById('tab-btn-pomo').classList.add('text-gray-400'); 
+        document.getElementById('tab-btn-crono').classList.add('text-gray-400'); 
+        document.getElementById('aba-manual').classList.remove('hidden'); 
+    }
+}
+
+// INSERÇÃO MANUAL DE TEMPO (NOVO)
+function salvarTempoManual() {
+    const horasInput = parseInt(document.getElementById('manual-horas').value) || 0;
+    const minutosInput = parseInt(document.getElementById('manual-minutos').value) || 0;
+    const matId = document.getElementById('select-materia-tempo').value;
+    
+    const totalEmMinutos = (horasInput * 60) + minutosInput;
+    
+    if (totalEmMinutos <= 0) {
+        alert("Insira uma quantidade de tempo válida maior que zero.");
+        return;
+    }
+    
+    dadosEstudo.tempoTotal += totalEmMinutos;
+    registrarAtividade(totalEmMinutos, 0, 0, 0, matId);
+    salvarLocal(true);
+    
+    // Limpar os campos após salvar
+    document.getElementById('manual-horas').value = '';
+    document.getElementById('manual-minutos').value = '';
+    
+    alert(`Sucesso! ${horasInput} hora(s) e ${minutosInput} minuto(s) adicionados.`);
+}
+
+// POMODORO
 let pomoTempoRestante = 25 * 60; let pomoInterval; let pomoRodando = false; let pomoEmFoco = true;
 function aplicarConfigPomo() { if(!pomoRodando) { pomoTempoRestante = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; atualizarDisplayPomo(); } }
 function atualizarDisplayPomo() { let m = Math.floor(pomoTempoRestante / 60).toString().padStart(2, '0'); let s = (pomoTempoRestante % 60).toString().padStart(2, '0'); document.getElementById('display-pomo').innerText = `${m}:${s}`; }
@@ -225,12 +194,17 @@ function iniciarPomodoro(isFoco) {
 function pausarPomodoroTimer() { clearInterval(pomoInterval); pomoRodando = false; }
 function pararPomodoro() { clearInterval(pomoInterval); pomoRodando = false; pomoTempoRestante = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; atualizarDisplayPomo(); }
 
+// CRONÔMETRO
 let cronoSegundos = 0; let cronoInterval; let cronoRodando = false;
 function atualizarDisplayCrono() { let h = Math.floor(cronoSegundos / 3600).toString().padStart(2, '0'); let m = Math.floor((cronoSegundos % 3600) / 60).toString().padStart(2, '0'); let s = (cronoSegundos % 60).toString().padStart(2, '0'); document.getElementById('display-crono').innerText = `${h}:${m}:${s}`; }
 function iniciarCrono() { if(!cronoRodando) { cronoRodando = true; cronoInterval = setInterval(() => { cronoSegundos++; atualizarDisplayCrono(); }, 1000); } }
 function pausarCrono() { clearInterval(cronoInterval); cronoRodando = false; }
 function pararESalvarCrono() { pausarCrono(); if(cronoSegundos >= 60) { const min = Math.floor(cronoSegundos / 60); const matId = document.getElementById('select-materia-tempo').value; dadosEstudo.tempoTotal += min; registrarAtividade(min, 0, 0, 0, matId); salvarLocal(true); alert(`Salvo: ${min} minutos!`); } cronoSegundos = 0; atualizarDisplayCrono(); }
-function mudarAbaTempo(aba) { document.getElementById('tab-btn-pomo').classList.remove('tab-active', 'text-gray-400'); document.getElementById('tab-btn-crono').classList.remove('tab-active', 'text-gray-400'); document.getElementById('aba-pomodoro').classList.add('hidden'); document.getElementById('aba-cronometro').classList.add('hidden'); if(aba === 'pomo') { document.getElementById('tab-btn-pomo').classList.add('tab-active'); document.getElementById('tab-btn-crono').classList.add('text-gray-400'); document.getElementById('aba-pomodoro').classList.remove('hidden'); } else { document.getElementById('tab-btn-crono').classList.add('tab-active'); document.getElementById('tab-btn-pomo').classList.add('text-gray-400'); document.getElementById('aba-cronometro').classList.remove('hidden'); } }
+
+
+// ==========================================
+// DEMAIS FUNÇÕES (Questões, PDFs, Edital...)
+// ==========================================
 
 function resetarPaginas() { if(confirm("Zerar as páginas globais?")) { dadosEstudo.paginasLidas = 0; dadosEstudo.pdfs.forEach(p => { p.lidas = 0; p.ultimaPagina = 0; }); Object.keys(dadosEstudo.historicoDias).forEach(d => { dadosEstudo.historicoDias[d].paginas = 0; }); salvarLocal(true); } }
 function resetarQuestoes() { if(confirm("Zerar todas as questões?")) { dadosEstudo.questoesGerais = { acertos: 0, erros: 0 }; dadosEstudo.materias.forEach(m => { if(m.questoes) m.questoes = { acertos: 0, erros: 0 }; }); Object.keys(dadosEstudo.historicoDias).forEach(d => { dadosEstudo.historicoDias[d].acertos = 0; dadosEstudo.historicoDias[d].erros = 0; }); salvarLocal(true); } }
@@ -254,42 +228,21 @@ function agendarRevisoes(mat, sub) { const hoje = new Date(); dadosEstudo.interv
 function concluirRevisao(id) { dadosEstudo.revisoes = dadosEstudo.revisoes.filter(r => r.id !== id); registrarAtividade(0,0,0,0); salvarLocal(false); }
 function excluirRevisao(id) { if(confirm("Apagar revisão?")) { dadosEstudo.revisoes = dadosEstudo.revisoes.filter(r => r.id !== id); salvarLocal(false); } }
 
-function exportarBackup() { const dl = document.createElement('a'); dl.setAttribute("href", "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dadosEstudo))); dl.setAttribute("download", "estudopro_backup.json"); document.body.appendChild(dl); dl.click(); dl.remove(); }
-function importarBackup(e) { const r = new FileReader(); r.onload = function(evt) { try { const imp = JSON.parse(evt.target.result); if(imp.materias) { dadosEstudo = imp; salvarLocal(true); alert("Backup Restaurado! Os dados já foram enviados para a nuvem."); } } catch (err) { alert("Erro no arquivo."); } }; r.readAsText(e.target.files[0]); }
-
-// RENDERIZAÇÃO
+// RENDERIZAÇÃO E GRÁFICOS
 function renderizarTopBar() {
     const selectConc = document.getElementById('select-concurso'); const dataDisp = document.getElementById('display-concurso-data'); const diasDisp = document.getElementById('dias-restantes');
     selectConc.innerHTML = '<option value="" class="text-gray-800">Selecione uma prova...</option>';
-    
-    if(dadosEstudo.concursos) {
-        dadosEstudo.concursos.forEach(c => { selectConc.innerHTML += `<option value="${c.id}" class="text-gray-800">${c.nome}</option>`; });
-    }
-    
+    if(dadosEstudo.concursos) { dadosEstudo.concursos.forEach(c => { selectConc.innerHTML += `<option value="${c.id}" class="text-gray-800">${c.nome}</option>`; }); }
     if(dadosEstudo.concursoAtivo) { 
-        selectConc.value = dadosEstudo.concursoAtivo; 
-        const conc = dadosEstudo.concursos.find(c => c.id === dadosEstudo.concursoAtivo); 
-        if(conc) { 
-            if(conc.data) {
-                const dp = conc.data.split('-'); 
-                dataDisp.innerText = `${dp[2]}/${dp[1]}/${dp[0]}`; 
-                diasDisp.innerText = calcularDiasRestantes(conc.data); 
-            } else {
-                dataDisp.innerText = 'Sem data'; 
-                diasDisp.innerText = '--';
-            }
-        } 
+        selectConc.value = dadosEstudo.concursoAtivo; const conc = dadosEstudo.concursos.find(c => c.id === dadosEstudo.concursoAtivo); 
+        if(conc) { if(conc.data) { const dp = conc.data.split('-'); dataDisp.innerText = `${dp[2]}/${dp[1]}/${dp[0]}`; diasDisp.innerText = calcularDiasRestantes(conc.data); } else { dataDisp.innerText = 'Sem data'; diasDisp.innerText = '--'; } } 
     } else { dataDisp.innerText = '--/--/----'; diasDisp.innerText = '--'; }
-
-    document.getElementById('config-revisoes-input').value = dadosEstudo.intervalosRevisao.join(', ');
-    document.getElementById('display-ofensiva').innerText = dadosEstudo.ofensiva.dias; document.getElementById('display-pomodoros').innerText = dadosEstudo.pomodorosRealizados; document.getElementById('display-paginas').innerText = dadosEstudo.paginasLidas; document.getElementById('display-questoes-totais').innerText = dadosEstudo.questoesGerais.acertos + dadosEstudo.questoesGerais.erros; const h = Math.floor(dadosEstudo.tempoTotal / 60); const m = dadosEstudo.tempoTotal % 60; document.getElementById('display-tempo').innerText = `${h}h ${m}m`;
-    
+    document.getElementById('config-revisoes-input').value = dadosEstudo.intervalosRevisao.join(', '); document.getElementById('display-ofensiva').innerText = dadosEstudo.ofensiva.dias; document.getElementById('display-pomodoros').innerText = dadosEstudo.pomodorosRealizados; document.getElementById('display-paginas').innerText = dadosEstudo.paginasLidas; document.getElementById('display-questoes-totais').innerText = dadosEstudo.questoesGerais.acertos + dadosEstudo.questoesGerais.erros; const h = Math.floor(dadosEstudo.tempoTotal / 60); const m = dadosEstudo.tempoTotal % 60; document.getElementById('display-tempo').innerText = `${h}h ${m}m`;
     const cal = document.getElementById('calendario-grid'); cal.innerHTML = ''; const hj = new Date(); document.getElementById('mes-atual-label').innerText = hj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
     const a = hj.getFullYear(); const mes = hj.getMonth(); const pD = new Date(a, mes, 1).getDay(); const dM = new Date(a, mes + 1, 0).getDate(); const hjStr = a + '-' + String(mes+1).padStart(2,'0') + '-' + String(hj.getDate()).padStart(2,'0');
     for(let i=0; i<pD; i++) cal.innerHTML += `<div></div>`;
     for(let d=1; d<=dM; d++) { const dataStr = `${a}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const est = dadosEstudo.historicoDias[dataStr]; let cls = 'bg-gray-100 rounded text-gray-400'; let title = `${d}/${mes+1} - Sem estudos`; if (est && (est.minutos > 0 || est.acertos > 0 || est.paginas > 0)) { cls = 'bg-green-500 text-white rounded font-bold shadow-sm'; title = `${d}/${mes+1}: ${est.minutos}min | ${est.acertos+est.erros}q | ${est.paginas}pág`; } else if (dataStr === hjStr) { cls = 'bg-indigo-100 text-indigo-800 rounded font-bold border border-indigo-300'; title = `Hoje!`; } cal.innerHTML += `<div class="p-2 cursor-help transition hover:opacity-80 ${cls}" title="${title}">${d}</div>`; }
 }
-
 function renderizarEdital() {
     const listaEd = document.getElementById('lista-edital'); listaEd.innerHTML = dadosEstudo.materias.length === 0 ? "<p class='text-gray-400 text-sm'>Vazio.</p>" : "";
     dadosEstudo.materias.forEach((mat, iMat) => {
@@ -300,15 +253,12 @@ function renderizarEdital() {
         listaEd.innerHTML += `<div class="border rounded-xl p-4 bg-white mb-4 shadow-sm border-l-4 border-l-indigo-400 transicao-suave"><div class="flex justify-between items-center mb-2"><div class="flex-1 cursor-pointer flex items-center gap-2" onclick="alternarExpandirMateria(${iMat})"><i class="fa-solid ${iconDir} text-gray-400 hover:text-indigo-600 w-4"></i><h3 class="font-bold text-gray-800">${mat.nome} <span class="text-xs font-normal text-indigo-500 ml-2 bg-indigo-50 px-2 py-1 rounded"><i class="fa-solid fa-clock"></i> ${tFormat}</span></h3> </div><button onclick="deletarMateria(${iMat})" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div><div class="w-full bg-gray-100 rounded-full h-2 mb-3"><div class="bg-indigo-500 h-2 rounded-full" style="width: ${pctEd}%"></div></div><div class="${displaySub} transicao-suave"><div class="flex gap-2 mb-2 ml-4"><input type="text" id="novo-subtema-${iMat}" placeholder="Adicionar tópico..." class="text-sm p-1 bg-gray-50 border rounded flex-1"><button onclick="adicionarSubtema(${iMat})" class="bg-gray-200 px-2 rounded hover:bg-gray-300 text-sm font-bold">Add</button></div><div class="max-h-64 overflow-y-auto scroll-custom">${subs}</div></div></div>`;
     });
 }
-
 function renderizarRevisoes() { const lr = document.getElementById('lista-revisoes'); lr.innerHTML = dadosEstudo.revisoes.length === 0 ? "<p class='text-gray-500 text-sm'>Tudo em dia!</p>" : ""; dadosEstudo.revisoes.forEach(r => { const [a, m, d] = r.dataAgendada.split('-'); lr.innerHTML += `<div class="bg-white p-3 rounded-lg border-l-4 border-orange-400 shadow-sm flex justify-between items-center mb-2"><div><p class="text-xs text-orange-600 font-bold uppercase">${r.tipo} - ${d}/${m}/${a}</p><p class="font-bold text-gray-800 text-sm">${r.materia}</p> <p class="text-gray-500 text-xs truncate w-32 md:w-48">${r.subtema}</p></div><div class="flex gap-1"><button onclick="concluirRevisao(${r.id})" class="text-green-500 hover:text-green-700 p-2"><i class="fa-solid fa-check-circle text-xl"></i></button><button onclick="excluirRevisao(${r.id})" class="text-gray-400 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button></div></div>`; }); }
-
 function renderizarTabelasEListas() {
     const listaPdfs = document.getElementById('lista-pdfs'); listaPdfs.innerHTML = dadosEstudo.pdfs.length === 0 ? "<p class='text-gray-400 text-sm'>Nenhum material.</p>" : ""; dadosEstudo.pdfs.forEach(p => { let pct = p.totalPaginas > 0 ? Math.round((p.lidas / p.totalPaginas) * 100) : 0; let lHtml = p.link ? `<a href="${p.link}" target="_blank" class="text-blue-500 hover:underline text-xs">Abrir PDF</a>` : ``; listaPdfs.innerHTML += `<div class="border rounded p-3 bg-white shadow-sm border-l-4 border-red-400"><div class="flex justify-between items-start mb-2"><div><p class="font-bold text-gray-800 text-sm">${p.nome}</p>${lHtml}</div><button onclick="deletarPdf(${p.id})" class="text-gray-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div><div class="flex justify-between text-xs text-gray-500 mb-1 font-bold"><span>Lidas: ${p.lidas}/${p.totalPaginas}</span> <span>Pág. ${p.ultimaPagina}</span></div><div class="w-full bg-gray-200 rounded-full h-1.5 mb-3"><div class="bg-red-500 h-1.5 rounded-full" style="width: ${pct}%"></div></div><div class="flex items-center gap-1 text-xs"><input type="number" id="pdf-ini-${p.id}" placeholder="Início" class="border p-1 w-12 rounded text-center"><span>a</span><input type="number" id="pdf-fim-${p.id}" placeholder="Fim" class="border p-1 w-12 rounded text-center"><button onclick="atualizarLeituraPdf(${p.id})" class="bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200 flex-1">+ Reg.</button></div></div>`; });
     const selMatQ = document.getElementById('select-materia-questoes'); selMatQ.innerHTML = '<option value="">Selecione...</option>'; const selMatT = document.getElementById('select-materia-tempo'); selMatT.innerHTML = '<option value="">Geral (Sem Matéria)</option>'; const tabQ = document.getElementById('tabela-questoes'); tabQ.innerHTML = "";
     dadosEstudo.materias.forEach((mat, iMat) => { selMatQ.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; selMatT.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; if(mat.questoes) { const tM = mat.questoes.acertos + mat.questoes.erros; const pctM = tM === 0 ? 0 : Math.round((mat.questoes.acertos / tM)*100); tabQ.innerHTML += `<tr class="border-b hover:bg-gray-100"><td class="py-2 font-bold text-gray-700">${mat.nome}</td> <td class="py-2 text-center text-gray-500">${tM}</td><td class="py-2 text-center font-bold text-green-600">${mat.questoes.acertos}</td> <td class="py-2 text-center font-bold text-red-500">${mat.questoes.erros}</td><td class="py-2 text-right font-black ${pctM >= 80 ? 'text-green-600' : (pctM>=60 ? 'text-yellow-600' : 'text-red-500')}">${pctM}%</td> </tr>`; } });
 }
-
 function atualizarGraficos() {
     let totQ = dadosEstudo.questoesGerais.acertos + dadosEstudo.questoesGerais.erros; if(chartGeral) chartGeral.destroy(); chartGeral = new Chart(document.getElementById('graficoGeral').getContext('2d'), { type: 'doughnut', data: { labels: totQ>0?['Acertos', 'Erros']:['Sem Dados'], datasets: [{ data: totQ>0?[dadosEstudo.questoesGerais.acertos, dadosEstudo.questoesGerais.erros]:[1], backgroundColor: totQ>0?['#10b981', '#ef4444']:['#e5e7eb'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { enabled: totQ>0 } } } });
     const labelsM = [], dadosM = [], coresM = [], labelsT = [], dadosT = [];
@@ -322,7 +272,7 @@ function atualizarGraficos() {
 function atualizarInterface() { renderizarTopBar(); renderizarTabelasEListas(); renderizarEdital(); renderizarRevisoes(); }
 
 // ==========================================
-// EXPORTANDO PARA O HTML
+// EXPORTANDO PARA O HTML GLOBAIS
 // ==========================================
 window.alternarAuth = alternarAuth;
 window.fazerLogin = fazerLogin;
@@ -336,6 +286,7 @@ window.iniciarCrono = iniciarCrono;
 window.pausarCrono = pausarCrono;
 window.pararESalvarCrono = pararESalvarCrono;
 window.mudarAbaTempo = mudarAbaTempo;
+window.salvarTempoManual = salvarTempoManual; // Exportado aqui!
 window.resetarPaginas = resetarPaginas;
 window.resetarQuestoes = resetarQuestoes;
 window.resetarTempo = resetarTempo;
@@ -353,8 +304,6 @@ window.salvarQuestoes = salvarQuestoes;
 window.salvarConfigRevisoes = salvarConfigRevisoes;
 window.concluirRevisao = concluirRevisao;
 window.excluirRevisao = excluirRevisao;
-window.exportarBackup = exportarBackup;
-window.importarBackup = importarBackup;
 window.mostrarFormConcurso = mostrarFormConcurso;
 window.esconderFormConcurso = esconderFormConcurso;
 window.adicionarConcurso = adicionarConcurso;
