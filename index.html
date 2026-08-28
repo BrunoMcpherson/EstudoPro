@@ -54,8 +54,8 @@
         <div class="text-center"><i class="fa-solid fa-circle-notch fa-spin text-5xl text-indigo-600 dark:text-indigo-400 mb-4"></i><p class="font-bold text-gray-600 dark:text-gray-300">Sincronizando dados...</p></div>
     </div>
 
-    <!-- APP PRINCIPAL -->
-    <main id="app-principal" class="hidden flex-1 overflow-y-auto p-4 md:p-8 scroll-custom relative">
+    <!-- APP PRINCIPAL - ACELERAÇÃO GPU ADICIONADA -->
+    <main id="app-principal" class="hidden flex-1 overflow-y-auto p-4 md:p-8 scroll-custom relative transform-gpu">
         
         <!-- HEADER TOP -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
@@ -92,7 +92,7 @@
                     <div class="bg-white dark:bg-gray-800 text-indigo-900 dark:text-white px-6 py-3 rounded-xl shadow text-center min-w-[100px]"><p class="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Faltam</p><p class="text-3xl font-black" id="dias-restantes">--</p></div>
                 </div>
             </div>
-            <div id="form-novo-concurso" class="hidden glass dark:bg-gray-800 p-4 rounded-xl border border-indigo-200 dark:border-gray-700 mb-6 flex-col md:flex-row gap-2 shadow-sm">
+            <div id="form-novo-concurso" class="hidden bg-white dark:bg-gray-800 p-4 rounded-xl border border-indigo-200 dark:border-gray-700 mb-6 flex-col md:flex-row gap-2 shadow-sm">
                 <input type="text" id="novo-concurso-nome" placeholder="Nome do Concurso" class="p-2 border dark:border-gray-600 rounded-lg flex-1 bg-white dark:bg-gray-700 dark:text-white">
                 <input type="date" id="novo-concurso-data" class="p-2 border dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700">
                 <button onclick="adicionarConcurso()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700">Salvar Prova</button>
@@ -112,7 +112,7 @@
                 <!-- COLUNA 1 -->
                 <div class="space-y-6">
                     <!-- GESTÃO DE TEMPO -->
-                    <div class="glass bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                         <div class="mb-4 text-left">
                             <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Matéria Atual (Obrigatória):</label>
                             <select id="select-materia-tempo" class="w-full p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 font-bold text-gray-700 dark:text-gray-200 mt-1 focus:ring-2 focus:ring-indigo-500 outline-none"></select>
@@ -155,7 +155,7 @@
                     </div>
 
                     <!-- CALENDÁRIO -->
-                    <div class="glass bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                         <h2 class="text-lg font-bold text-gray-700 dark:text-white mb-4 flex justify-between items-center group relative">
                             <span><i class="fa-regular fa-calendar-check text-green-500 mr-2"></i> Calendário</span>
                             <div class="flex gap-2 items-center"><button onclick="resetarCalendario()" class="text-gray-300 dark:text-gray-600 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><span class="text-xs text-gray-400 font-normal" id="mes-atual-label"></span></div>
@@ -165,7 +165,7 @@
                     </div>
 
                     <!-- PDFs -->
-                    <div class="glass bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                         <h2 class="text-lg font-bold text-gray-700 dark:text-white mb-4"><i class="fa-solid fa-file-pdf text-red-500 mr-2"></i> Meus PDFs</h2>
                         <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border dark:border-gray-600 mb-4">
                             <input type="text" id="pdf-nome" placeholder="Assunto (Ex: Inquérito)" class="w-full p-2 border dark:border-gray-600 rounded mb-2 text-sm outline-none focus:ring-1 focus:ring-indigo-300 bg-white dark:bg-gray-800 dark:text-white">
@@ -179,7 +179,7 @@
                 <!-- COLUNA 2 e 3 -->
                 <div class="xl:col-span-2 space-y-6">
                     <!-- REVISÕES -->
-                    <div class="glass bg-orange-50 dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <div class="bg-orange-50 dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                         <div class="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-2">
                             <h2 class="text-lg font-bold text-orange-700 dark:text-orange-400"><i class="fa-solid fa-clock-rotate-left mr-2"></i> Revisões Pendentes</h2>
                             <div class="flex items-center gap-4">
@@ -191,7 +191,7 @@
                     </div>
 
                     <!-- QUESTÕES -->
-                    <div class="glass bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                         <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4"><i class="fa-solid fa-chart-line text-blue-500 mr-2"></i> Desempenho e Gráficos</h2>
                         <div class="flex flex-col md:flex-row gap-6 mb-6">
                             <div class="w-full md:w-1/3 space-y-3">
@@ -211,7 +211,7 @@
                     </div>
 
                     <!-- EDITAL -->
-                    <div class="glass bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-4">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-4">
                         <h2 class="text-xl font-bold text-gray-800 dark:text-white"><i class="fa-solid fa-list-check text-indigo-500 mr-2"></i> Meu Edital</h2>
                         <div class="bg-indigo-50 dark:bg-gray-700 p-4 rounded-xl border border-indigo-100 dark:border-gray-600">
                             <p class="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-2">Adicionar Matéria Rápida</p>

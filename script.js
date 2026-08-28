@@ -23,7 +23,7 @@ let dadosEstudo = {
     perfil: { nome: "", idade: "", telefone: "", email: "" },
     configRevisaoAuto: true, darkMode: false,
     flashcards: [], resumos: [],
-    layoutFlashcards: 'grid', layoutResumos: 'grid' // NOVAS VARIÁVEIS DE LAYOUT
+    layoutFlashcards: 'grid', layoutResumos: 'grid'
 };
 
 let chartGeral = null, chartMaterias = null, chartEvolucao = null, chartTempoMat = null;
@@ -86,38 +86,27 @@ function mudarAbaMaterial(aba) {
     else { document.getElementById('tab-mat-resumos').classList.add('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400'); document.getElementById('tab-mat-resumos').classList.remove('text-gray-500', 'dark:text-gray-400'); document.getElementById('sec-resumos').classList.remove('hidden'); document.getElementById('sec-resumos').classList.add('block'); }
 }
 
-// NOVA FUNÇÃO: Alternar Layouts
 function mudarLayout(tipo, layout) {
     if(tipo === 'flashcards') { dadosEstudo.layoutFlashcards = layout; renderizarFlashcards(); } 
     else { dadosEstudo.layoutResumos = layout; renderizarResumos(); }
     salvarLocal(false);
 }
 
-// LÓGICA DE FLASHCARDS
-function salvarFlashcard() {
-    const materia = document.getElementById('select-materia-flashcard').value; const frente = document.getElementById('flashcard-frente').value.trim(); const verso = document.getElementById('flashcard-verso').value.trim();
-    if(!materia) return alert("Selecione uma matéria!"); if(!frente || !verso) return alert("Preencha a frente e o verso.");
-    dadosEstudo.flashcards.push({ id: Date.now(), materia, frente, verso });
-    document.getElementById('flashcard-frente').value = ''; document.getElementById('flashcard-verso').value = '';
-    salvarLocal(false); renderizarFlashcards(); alert("Cartão Salvo!");
-}
-function deletarFlashcard(id) { if(confirm("Excluir este cartão?")) { dadosEstudo.flashcards = dadosEstudo.flashcards.filter(f => f.id !== id); salvarLocal(false); renderizarFlashcards(); } }
-function alternarFlashcardLista(id) { document.getElementById(`fc-verso-${id}`).classList.toggle('hidden'); }
-
+// BATCH RENDERING (Super Otimizado)
 function renderizarFlashcards() {
-    const grid = document.getElementById('grid-flashcards'); grid.innerHTML = ''; const filtro = document.getElementById('filtro-flashcard').value;
+    const grid = document.getElementById('grid-flashcards'); const filtro = document.getElementById('filtro-flashcard').value;
     let list = dadosEstudo.flashcards; if(filtro && filtro !== 'todas') list = list.filter(f => f.materia === filtro);
     
-    // Atualiza visual dos botões
     document.getElementById('btn-layout-fc-grid').className = dadosEstudo.layoutFlashcards === 'grid' ? "px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" : "px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition";
     document.getElementById('btn-layout-fc-lista').className = dadosEstudo.layoutFlashcards === 'lista' ? "px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" : "px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition";
 
     if(list.length === 0) { grid.innerHTML = '<p class="text-gray-400 col-span-full">Nenhum flashcard criado ainda.</p>'; return; }
     
+    let htmlGrid = '';
     if(dadosEstudo.layoutFlashcards === 'grid') {
         grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6";
         list.forEach(f => {
-            grid.innerHTML += `
+            htmlGrid += `
             <div class="flip-card perspective-1000 w-full h-56 cursor-pointer group" onclick="this.classList.toggle('flipped')">
                 <div class="flip-card-inner relative w-full h-full transform-style-3d">
                     <div class="absolute w-full h-full backface-hidden bg-white dark:bg-gray-800 rounded-2xl shadow-md p-4 flex flex-col justify-center items-center text-center border-t-4 border-indigo-500 dark:border-gray-600">
@@ -135,7 +124,7 @@ function renderizarFlashcards() {
     } else {
         grid.className = "flex flex-col gap-3";
         list.forEach(f => {
-            grid.innerHTML += `
+            htmlGrid += `
             <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl shadow-sm overflow-hidden group">
                 <div class="p-3 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition" onclick="alternarFlashcardLista(${f.id})">
                     <div class="flex items-center gap-3"><span class="text-[10px] font-bold text-white bg-indigo-500 px-2 py-1 rounded uppercase tracking-widest hidden md:block">${f.materia}</span><p class="font-bold text-gray-800 dark:text-white text-sm">${f.frente}</p></div>
@@ -150,35 +139,28 @@ function renderizarFlashcards() {
             </div>`;
         });
     }
+    grid.innerHTML = htmlGrid;
 }
 
-// LÓGICA DE RESUMOS
-function salvarResumo() {
-    const materia = document.getElementById('select-materia-resumo').value; const titulo = document.getElementById('resumo-titulo').value.trim(); const conteudo = document.getElementById('resumo-conteudo').value.trim();
-    if(!materia) return alert("Selecione uma matéria!"); if(!titulo || !conteudo) return alert("Preencha título e conteúdo.");
-    const data = new Date().toLocaleDateString('pt-BR');
-    dadosEstudo.resumos.push({ id: Date.now(), materia, titulo, conteudo, data });
-    document.getElementById('resumo-titulo').value = ''; document.getElementById('resumo-conteudo').value = '';
-    salvarLocal(false); renderizarResumos(); alert("Resumo Salvo!");
-}
-function deletarResumo(id) { if(confirm("Excluir este caderno/resumo?")) { dadosEstudo.resumos = dadosEstudo.resumos.filter(r => r.id !== id); salvarLocal(false); renderizarResumos(); } }
-function alternarResumo(id) { document.getElementById(`cont-resumo-${id}`).classList.toggle('hidden'); }
+function salvarFlashcard() { const materia = document.getElementById('select-materia-flashcard').value; const frente = document.getElementById('flashcard-frente').value.trim(); const verso = document.getElementById('flashcard-verso').value.trim(); if(!materia) return alert("Selecione uma matéria!"); if(!frente || !verso) return alert("Preencha a frente e o verso."); dadosEstudo.flashcards.push({ id: Date.now(), materia, frente, verso }); document.getElementById('flashcard-frente').value = ''; document.getElementById('flashcard-verso').value = ''; salvarLocal(false); renderizarFlashcards(); alert("Cartão Salvo!"); }
+function deletarFlashcard(id) { if(confirm("Excluir este cartão?")) { dadosEstudo.flashcards = dadosEstudo.flashcards.filter(f => f.id !== id); salvarLocal(false); renderizarFlashcards(); } }
+function alternarFlashcardLista(id) { document.getElementById(`fc-verso-${id}`).classList.toggle('hidden'); }
 
+// BATCH RENDERING
 function renderizarResumos() {
-    const lista = document.getElementById('lista-meus-resumos'); lista.innerHTML = ''; const filtro = document.getElementById('filtro-resumo').value;
+    const lista = document.getElementById('lista-meus-resumos'); const filtro = document.getElementById('filtro-resumo').value;
     let list = dadosEstudo.resumos; if(filtro && filtro !== 'todas') list = list.filter(r => r.materia === filtro);
     
-    // Atualiza visual dos botões
     document.getElementById('btn-layout-res-grid').className = dadosEstudo.layoutResumos === 'grid' ? "px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" : "px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition";
     document.getElementById('btn-layout-res-lista').className = dadosEstudo.layoutResumos === 'lista' ? "px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" : "px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition";
 
     if(list.length === 0) { lista.innerHTML = '<p class="text-gray-400 col-span-full">Nenhum resumo criado ainda.</p>'; return; }
-    
     lista.className = dadosEstudo.layoutResumos === 'grid' ? "grid grid-cols-1 lg:grid-cols-2 gap-4" : "flex flex-col gap-4";
 
+    let htmlLista = '';
     list.forEach(r => {
         const textoFormatado = r.conteudo.replace(/\n/g, '<br>');
-        lista.innerHTML += `
+        htmlLista += `
         <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
             <div class="p-4 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition" onclick="alternarResumo(${r.id})">
                 <div><span class="text-xs font-bold text-green-600 dark:text-green-400 uppercase">${r.materia}</span><h3 class="font-bold text-gray-800 dark:text-white text-lg">${r.titulo}</h3><span class="text-xs text-gray-500 dark:text-gray-400"><i class="fa-regular fa-calendar mr-1"></i>${r.data}</span></div>
@@ -192,7 +174,12 @@ function renderizarResumos() {
             </div>
         </div>`;
     });
+    lista.innerHTML = htmlLista;
 }
+
+function salvarResumo() { const materia = document.getElementById('select-materia-resumo').value; const titulo = document.getElementById('resumo-titulo').value.trim(); const conteudo = document.getElementById('resumo-conteudo').value.trim(); if(!materia) return alert("Selecione uma matéria!"); if(!titulo || !conteudo) return alert("Preencha título e conteúdo."); const data = new Date().toLocaleDateString('pt-BR'); dadosEstudo.resumos.push({ id: Date.now(), materia, titulo, conteudo, data }); document.getElementById('resumo-titulo').value = ''; document.getElementById('resumo-conteudo').value = ''; salvarLocal(false); renderizarResumos(); alert("Resumo Salvo!"); }
+function deletarResumo(id) { if(confirm("Excluir este caderno/resumo?")) { dadosEstudo.resumos = dadosEstudo.resumos.filter(r => r.id !== id); salvarLocal(false); renderizarResumos(); } }
+function alternarResumo(id) { document.getElementById(`cont-resumo-${id}`).classList.toggle('hidden'); }
 
 function mostrarFormConcurso() { document.getElementById('form-novo-concurso').classList.remove('hidden'); document.getElementById('form-novo-concurso').classList.add('flex'); }
 function esconderFormConcurso() { document.getElementById('form-novo-concurso').classList.add('hidden'); document.getElementById('form-novo-concurso').classList.remove('flex'); }
@@ -220,54 +207,20 @@ function mudarAbaTempo(aba) {
     if(aba === 'pomo') { document.getElementById('tab-btn-pomo').classList.add('tab-active'); document.getElementById('tab-btn-crono').classList.add('text-gray-400'); document.getElementById('tab-btn-manual').classList.add('text-gray-400'); document.getElementById('aba-pomodoro').classList.remove('hidden'); } else if (aba === 'crono') { document.getElementById('tab-btn-crono').classList.add('tab-active'); document.getElementById('tab-btn-pomo').classList.add('text-gray-400'); document.getElementById('tab-btn-manual').classList.add('text-gray-400'); document.getElementById('aba-cronometro').classList.remove('hidden'); } else { document.getElementById('tab-btn-manual').classList.add('tab-active'); document.getElementById('tab-btn-pomo').classList.add('text-gray-400'); document.getElementById('tab-btn-crono').classList.add('text-gray-400'); document.getElementById('aba-manual').classList.remove('hidden'); }
 }
 
-function salvarTempoManual() {
-    const horas = parseInt(document.getElementById('manual-horas').value) || 0; const minutos = parseInt(document.getElementById('manual-minutos').value) || 0;
-    const matId = document.getElementById('select-materia-tempo').value;
-    if (matId === "") return alert("Selecione uma matéria específica antes de registrar o tempo!");
-    const tMin = (horas * 60) + minutos; if (tMin <= 0) return alert("Insira um tempo válido.");
-    dadosEstudo.tempoTotal += tMin; registrarAtividade(tMin, 0, 0, 0, matId); salvarLocal(true);
-    document.getElementById('manual-horas').value = ''; document.getElementById('manual-minutos').value = ''; alert(`Salvo: ${horas}h e ${minutos}m`);
-}
+function salvarTempoManual() { const horas = parseInt(document.getElementById('manual-horas').value) || 0; const minutos = parseInt(document.getElementById('manual-minutos').value) || 0; const matId = document.getElementById('select-materia-tempo').value; if (matId === "") return alert("Selecione uma matéria específica antes de registrar o tempo!"); const tMin = (horas * 60) + minutos; if (tMin <= 0) return alert("Insira um tempo válido."); dadosEstudo.tempoTotal += tMin; registrarAtividade(tMin, 0, 0, 0, matId); salvarLocal(true); document.getElementById('manual-horas').value = ''; document.getElementById('manual-minutos').value = ''; alert(`Salvo: ${horas}h e ${minutos}m`); }
 
 let pomoTempoRestante = 25 * 60; let pomoInterval; let pomoRodando = false; let pomoEmFoco = true; let dataAlvoPomo = null;
 function aplicarConfigPomo() { if(!pomoRodando) { pomoTempoRestante = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; atualizarDisplayPomo(); } }
 function atualizarDisplayPomo() { let m = Math.floor(pomoTempoRestante / 60).toString().padStart(2, '0'); let s = (pomoTempoRestante % 60).toString().padStart(2, '0'); document.getElementById('display-pomo').innerText = `${m}:${s}`; }
-
-function iniciarPomodoro(isFoco) {
-    if (pomoRodando) return; 
-    const matId = document.getElementById('select-materia-tempo').value;
-    if (matId === "" && isFoco) return alert("Selecione uma matéria específica para focar!");
-    pomoEmFoco = isFoco; const tFoco = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; const tPausa = (parseInt(document.getElementById('cfg-pomo-pausa').value) || 5) * 60;
-    if(pomoTempoRestante === 0 || (pomoTempoRestante === tFoco) || (pomoTempoRestante === tPausa)) { pomoTempoRestante = isFoco ? tFoco : tPausa; }
-    dataAlvoPomo = Date.now() + (pomoTempoRestante * 1000); 
-    pomoRodando = true; 
-    pomoInterval = setInterval(() => {
-        pomoTempoRestante = Math.round((dataAlvoPomo - Date.now()) / 1000);
-        if (pomoTempoRestante <= 0) { 
-            pomoTempoRestante = 0; pararPomodoro(); tocarAlarme(); 
-            if(pomoEmFoco) { const min = parseInt(document.getElementById('cfg-pomo-foco').value) || 25; dadosEstudo.tempoTotal += min; dadosEstudo.pomodorosRealizados++; registrarAtividade(min, 0, 0, 0, matId); salvarLocal(true); setTimeout(() => alert("Foco Finalizado!"), 500); } 
-            else setTimeout(() => alert("Descanso Finalizado!"), 500); 
-        }
-        atualizarDisplayPomo();
-    }, 1000);
-}
+function iniciarPomodoro(isFoco) { if (pomoRodando) return; const matId = document.getElementById('select-materia-tempo').value; if (matId === "" && isFoco) return alert("Selecione uma matéria específica para focar!"); pomoEmFoco = isFoco; const tFoco = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; const tPausa = (parseInt(document.getElementById('cfg-pomo-pausa').value) || 5) * 60; if(pomoTempoRestante === 0 || (pomoTempoRestante === tFoco) || (pomoTempoRestante === tPausa)) { pomoTempoRestante = isFoco ? tFoco : tPausa; } dataAlvoPomo = Date.now() + (pomoTempoRestante * 1000); pomoRodando = true; pomoInterval = setInterval(() => { pomoTempoRestante = Math.round((dataAlvoPomo - Date.now()) / 1000); if (pomoTempoRestante <= 0) { pomoTempoRestante = 0; pararPomodoro(); tocarAlarme(); if(pomoEmFoco) { const min = parseInt(document.getElementById('cfg-pomo-foco').value) || 25; dadosEstudo.tempoTotal += min; dadosEstudo.pomodorosRealizados++; registrarAtividade(min, 0, 0, 0, matId); salvarLocal(true); setTimeout(() => alert("Foco Finalizado!"), 500); } else setTimeout(() => alert("Descanso Finalizado!"), 500); } atualizarDisplayPomo(); }, 1000); }
 function pausarPomodoroTimer() { clearInterval(pomoInterval); pomoRodando = false; }
 function pararPomodoro() { clearInterval(pomoInterval); pomoRodando = false; pomoTempoRestante = (parseInt(document.getElementById('cfg-pomo-foco').value) || 25) * 60; atualizarDisplayPomo(); }
 
 let cronoSegundos = 0; let cronoInterval; let cronoRodando = false; let dataInicioCrono = null;
 function atualizarDisplayCrono() { let h = Math.floor(cronoSegundos / 3600).toString().padStart(2, '0'); let m = Math.floor((cronoSegundos % 3600) / 60).toString().padStart(2, '0'); let s = (cronoSegundos % 60).toString().padStart(2, '0'); document.getElementById('display-crono').innerText = `${h}:${m}:${s}`; }
-function iniciarCrono() { 
-    if(document.getElementById('select-materia-tempo').value === "") return alert("Selecione uma matéria específica para cronometrar!");
-    if(!cronoRodando) { cronoRodando = true; dataInicioCrono = Date.now() - (cronoSegundos * 1000); cronoInterval = setInterval(() => { cronoSegundos = Math.floor((Date.now() - dataInicioCrono) / 1000); atualizarDisplayCrono(); }, 1000); } 
-}
+function iniciarCrono() { if(document.getElementById('select-materia-tempo').value === "") return alert("Selecione uma matéria específica para cronometrar!"); if(!cronoRodando) { cronoRodando = true; dataInicioCrono = Date.now() - (cronoSegundos * 1000); cronoInterval = setInterval(() => { cronoSegundos = Math.floor((Date.now() - dataInicioCrono) / 1000); atualizarDisplayCrono(); }, 1000); } }
 function pausarCrono() { clearInterval(cronoInterval); cronoRodando = false; }
-function pararESalvarCrono() { 
-    pausarCrono(); 
-    const matId = document.getElementById('select-materia-tempo').value;
-    if(matId === "" && cronoSegundos >= 60) return alert("Selecione a matéria antes de Salvar!");
-    if(cronoSegundos >= 60) { const min = Math.floor(cronoSegundos / 60); dadosEstudo.tempoTotal += min; registrarAtividade(min, 0, 0, 0, matId); salvarLocal(true); alert(`Salvo: ${min} minutos!`); } 
-    cronoSegundos = 0; atualizarDisplayCrono(); 
-}
+function pararESalvarCrono() { pausarCrono(); const matId = document.getElementById('select-materia-tempo').value; if(matId === "" && cronoSegundos >= 60) return alert("Selecione a matéria antes de Salvar!"); if(cronoSegundos >= 60) { const min = Math.floor(cronoSegundos / 60); dadosEstudo.tempoTotal += min; registrarAtividade(min, 0, 0, 0, matId); salvarLocal(true); alert(`Salvo: ${min} minutos!`); } cronoSegundos = 0; atualizarDisplayCrono(); }
 
 function resetarPaginas() { if(confirm("Zerar as páginas?")) { dadosEstudo.paginasLidas = 0; dadosEstudo.pdfs.forEach(p => { p.lidas = 0; p.ultimaPagina = 0; }); Object.keys(dadosEstudo.historicoDias).forEach(d => { dadosEstudo.historicoDias[d].paginas = 0; }); salvarLocal(true); } }
 function resetarQuestoes() { if(confirm("Zerar questões?")) { dadosEstudo.questoesGerais = { acertos: 0, erros: 0 }; dadosEstudo.materias.forEach(m => { if(m.questoes) m.questoes = { acertos: 0, erros: 0 }; }); Object.keys(dadosEstudo.historicoDias).forEach(d => { dadosEstudo.historicoDias[d].acertos = 0; dadosEstudo.historicoDias[d].erros = 0; }); salvarLocal(true); } }
@@ -294,55 +247,85 @@ function agendarRevisoes(mat, sub) { const hoje = new Date(); dadosEstudo.interv
 function concluirRevisao(id) { dadosEstudo.revisoes = dadosEstudo.revisoes.filter(r => r.id !== id); registrarAtividade(0,0,0,0); salvarLocal(false); }
 function excluirRevisao(id) { if(confirm("Apagar revisão?")) { dadosEstudo.revisoes = dadosEstudo.revisoes.filter(r => r.id !== id); salvarLocal(false); } }
 
+// BATCH RENDERING
 function renderizarTopBar() {
     const selectConc = document.getElementById('select-concurso'); const dataDisp = document.getElementById('display-concurso-data'); const diasDisp = document.getElementById('dias-restantes');
-    selectConc.innerHTML = '<option value="" class="text-gray-800 dark:text-white">Selecione uma prova...</option>';
-    if(dadosEstudo.concursos) { dadosEstudo.concursos.forEach(c => { selectConc.innerHTML += `<option value="${c.id}" class="text-gray-800 dark:text-white">${c.nome}</option>`; }); }
+    
+    let htmlSelectConc = '<option value="" class="text-gray-800 dark:text-white">Selecione uma prova...</option>';
+    if(dadosEstudo.concursos) { dadosEstudo.concursos.forEach(c => { htmlSelectConc += `<option value="${c.id}" class="text-gray-800 dark:text-white">${c.nome}</option>`; }); }
+    selectConc.innerHTML = htmlSelectConc;
+    
     if(dadosEstudo.concursoAtivo) { selectConc.value = dadosEstudo.concursoAtivo; const conc = dadosEstudo.concursos.find(c => c.id === dadosEstudo.concursoAtivo); if(conc) { if(conc.data) { const dp = conc.data.split('-'); dataDisp.innerText = `${dp[2]}/${dp[1]}/${dp[0]}`; diasDisp.innerText = calcularDiasRestantes(conc.data); } else { dataDisp.innerText = 'Sem data'; diasDisp.innerText = '--'; } } } else { dataDisp.innerText = '--/--/----'; diasDisp.innerText = '--'; }
-    document.getElementById('config-revisoes-input').value = dadosEstudo.intervalosRevisao.join(', '); 
-    document.getElementById('check-rev-auto').checked = dadosEstudo.configRevisaoAuto;
+    document.getElementById('config-revisoes-input').value = dadosEstudo.intervalosRevisao.join(', '); document.getElementById('check-rev-auto').checked = dadosEstudo.configRevisaoAuto;
     document.getElementById('display-ofensiva').innerText = dadosEstudo.ofensiva.dias; document.getElementById('display-pomodoros').innerText = dadosEstudo.pomodorosRealizados; document.getElementById('display-paginas').innerText = dadosEstudo.paginasLidas; document.getElementById('display-questoes-totais').innerText = dadosEstudo.questoesGerais.acertos + dadosEstudo.questoesGerais.erros; const h = Math.floor(dadosEstudo.tempoTotal / 60); const m = dadosEstudo.tempoTotal % 60; document.getElementById('display-tempo').innerText = `${h}h ${m}m`;
-    const cal = document.getElementById('calendario-grid'); cal.innerHTML = ''; const hj = new Date(); document.getElementById('mes-atual-label').innerText = hj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+    
+    const cal = document.getElementById('calendario-grid'); const hj = new Date(); document.getElementById('mes-atual-label').innerText = hj.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
     const a = hj.getFullYear(); const mes = hj.getMonth(); const pD = new Date(a, mes, 1).getDay(); const dM = new Date(a, mes + 1, 0).getDate(); const hjStr = a + '-' + String(mes+1).padStart(2,'0') + '-' + String(hj.getDate()).padStart(2,'0');
-    for(let i=0; i<pD; i++) cal.innerHTML += `<div></div>`;
-    for(let d=1; d<=dM; d++) { const dataStr = `${a}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const est = dadosEstudo.historicoDias[dataStr]; let cls = 'bg-gray-100 dark:bg-gray-700 rounded text-gray-400 dark:text-gray-500'; let title = `${d}/${mes+1} - Sem estudos`; if (est && (est.minutos > 0 || est.acertos > 0 || est.paginas > 0)) { cls = 'bg-green-500 text-white rounded font-bold shadow-sm'; title = `${d}/${mes+1}: ${est.minutos}min | ${est.acertos+est.erros}q | ${est.paginas}pág`; } else if (dataStr === hjStr) { cls = 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded font-bold border border-indigo-300 dark:border-indigo-700'; title = `Hoje!`; } cal.innerHTML += `<div class="p-2 cursor-help transition hover:opacity-80 ${cls}" title="${title}">${d}</div>`; }
+    
+    let htmlCal = '';
+    for(let i=0; i<pD; i++) htmlCal += `<div></div>`;
+    for(let d=1; d<=dM; d++) { const dataStr = `${a}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const est = dadosEstudo.historicoDias[dataStr]; let cls = 'bg-gray-100 dark:bg-gray-700 rounded text-gray-400 dark:text-gray-500'; let title = `${d}/${mes+1} - Sem estudos`; if (est && (est.minutos > 0 || est.acertos > 0 || est.paginas > 0)) { cls = 'bg-green-500 text-white rounded font-bold shadow-sm'; title = `${d}/${mes+1}: ${est.minutos}min | ${est.acertos+est.erros}q | ${est.paginas}pág`; } else if (dataStr === hjStr) { cls = 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded font-bold border border-indigo-300 dark:border-indigo-700'; title = `Hoje!`; } htmlCal += `<div class="p-2 cursor-help transition hover:opacity-80 ${cls}" title="${title}">${d}</div>`; }
+    cal.innerHTML = htmlCal;
 }
 
+// BATCH RENDERING
 function renderizarEdital() {
-    const listaEd = document.getElementById('lista-edital'); listaEd.innerHTML = dadosEstudo.materias.length === 0 ? "<p class='text-gray-400 text-sm'>Vazio.</p>" : "";
+    const listaEd = document.getElementById('lista-edital');
+    let htmlEdital = dadosEstudo.materias.length === 0 ? "<p class='text-gray-400 text-sm'>Vazio.</p>" : "";
     dadosEstudo.materias.forEach((mat, iMat) => {
         const isExp = mat.expandido === undefined ? true : mat.expandido; const iconDir = isExp ? 'fa-chevron-up' : 'fa-chevron-down'; const displaySub = isExp ? 'block' : 'hidden';
         const ht = Math.floor((mat.tempo || 0) / 60); const mt = (mat.tempo || 0) % 60; let tFormat = mat.tempo ? (ht > 0 ? ht+'h ' : '') + mt+'m' : '0m';
         const concl = mat.subtemas.filter(s => s.concluido).length; const pctEd = mat.subtemas.length === 0 ? 0 : Math.round((concl / mat.subtemas.length) * 100);
         let subs = mat.subtemas.map((s, iSub) => `<div class="flex justify-between items-center mt-2 ml-4 p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded group"><div class="flex items-center gap-2 flex-1"><input type="checkbox" ${s.concluido ? 'checked' : ''} onchange="alternarConclusao(${iMat}, ${iSub})" class="w-4 h-4 text-indigo-600 cursor-pointer"><span class="${s.concluido ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'} text-sm">${s.nome}</span></div><button onclick="deletarSubtema(${iMat}, ${iSub})" class="text-gray-300 dark:text-gray-600 hover:text-red-500 hidden group-hover:block transition" title="Apagar Tópico"><i class="fa-solid fa-trash text-xs"></i></button></div>`).join('');
-        listaEd.innerHTML += `<div class="border dark:border-gray-700 rounded-xl p-4 bg-white dark:bg-gray-800 mb-4 shadow-sm border-l-4 border-l-indigo-400 transicao-suave"><div class="flex justify-between items-center mb-2"><div class="flex-1 cursor-pointer flex items-center gap-2" onclick="alternarExpandirMateria(${iMat})"><i class="fa-solid ${iconDir} text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 w-4"></i><h3 class="font-bold text-gray-800 dark:text-white">${mat.nome} <span class="text-xs font-normal text-indigo-500 dark:text-indigo-300 ml-2 bg-indigo-50 dark:bg-indigo-900/50 px-2 py-1 rounded"><i class="fa-solid fa-clock"></i> ${tFormat}</span></h3> </div><button onclick="deletarMateria(${iMat})" class="text-gray-400 hover:text-red-500" title="Apagar Matéria"><i class="fa-solid fa-trash"></i></button></div><div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 mb-3"><div class="bg-indigo-500 h-2 rounded-full" style="width: ${pctEd}%"></div></div><div class="${displaySub} transicao-suave"><div class="flex gap-2 mb-2 ml-4"><input type="text" id="novo-subtema-${iMat}" placeholder="Adicionar tópico..." class="text-sm p-1 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded flex-1"><button onclick="adicionarSubtema(${iMat})" class="bg-gray-200 dark:bg-gray-600 dark:text-white px-2 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm font-bold">Add</button></div><div class="max-h-64 overflow-y-auto scroll-custom">${subs}</div></div></div>`;
+        htmlEdital += `<div class="border dark:border-gray-700 rounded-xl p-4 bg-white dark:bg-gray-800 mb-4 shadow-sm border-l-4 border-l-indigo-400 transicao-suave"><div class="flex justify-between items-center mb-2"><div class="flex-1 cursor-pointer flex items-center gap-2" onclick="alternarExpandirMateria(${iMat})"><i class="fa-solid ${iconDir} text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 w-4"></i><h3 class="font-bold text-gray-800 dark:text-white">${mat.nome} <span class="text-xs font-normal text-indigo-500 dark:text-indigo-300 ml-2 bg-indigo-50 dark:bg-indigo-900/50 px-2 py-1 rounded"><i class="fa-solid fa-clock"></i> ${tFormat}</span></h3> </div><button onclick="deletarMateria(${iMat})" class="text-gray-400 hover:text-red-500" title="Apagar Matéria"><i class="fa-solid fa-trash"></i></button></div><div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 mb-3"><div class="bg-indigo-500 h-2 rounded-full" style="width: ${pctEd}%"></div></div><div class="${displaySub} transicao-suave"><div class="flex gap-2 mb-2 ml-4"><input type="text" id="novo-subtema-${iMat}" placeholder="Adicionar tópico..." class="text-sm p-1 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded flex-1"><button onclick="adicionarSubtema(${iMat})" class="bg-gray-200 dark:bg-gray-600 dark:text-white px-2 rounded hover:bg-gray-300 dark:hover:bg-gray-500 text-sm font-bold">Add</button></div><div class="max-h-64 overflow-y-auto scroll-custom">${subs}</div></div></div>`;
     });
+    listaEd.innerHTML = htmlEdital;
 }
-function renderizarRevisoes() { const lr = document.getElementById('lista-revisoes'); lr.innerHTML = dadosEstudo.revisoes.length === 0 ? "<p class='text-gray-500 dark:text-gray-400 text-sm'>Tudo em dia!</p>" : ""; dadosEstudo.revisoes.forEach(r => { const [a, m, d] = r.dataAgendada.split('-'); lr.innerHTML += `<div class="bg-white dark:bg-gray-700 p-3 rounded-lg border-l-4 border-orange-400 shadow-sm flex justify-between items-center mb-2"><div><p class="text-xs text-orange-600 dark:text-orange-400 font-bold uppercase">${r.tipo} - ${d}/${m}/${a}</p><p class="font-bold text-gray-800 dark:text-white text-sm">${r.materia}</p> <p class="text-gray-500 dark:text-gray-300 text-xs truncate w-32 md:w-48">${r.subtema}</p></div><div class="flex gap-1"><button onclick="concluirRevisao(${r.id})" class="text-green-500 hover:text-green-700 dark:hover:text-green-400 p-2"><i class="fa-solid fa-check-circle text-xl"></i></button><button onclick="excluirRevisao(${r.id})" class="text-gray-400 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button></div></div>`; }); }
 
+// BATCH RENDERING
+function renderizarRevisoes() { 
+    const lr = document.getElementById('lista-revisoes'); 
+    let htmlRev = dadosEstudo.revisoes.length === 0 ? "<p class='text-gray-500 dark:text-gray-400 text-sm'>Tudo em dia!</p>" : ""; 
+    dadosEstudo.revisoes.forEach(r => { 
+        const [a, m, d] = r.dataAgendada.split('-'); 
+        htmlRev += `<div class="bg-white dark:bg-gray-700 p-3 rounded-lg border-l-4 border-orange-400 shadow-sm flex justify-between items-center mb-2"><div><p class="text-xs text-orange-600 dark:text-orange-400 font-bold uppercase">${r.tipo} - ${d}/${m}/${a}</p><p class="font-bold text-gray-800 dark:text-white text-sm">${r.materia}</p> <p class="text-gray-500 dark:text-gray-300 text-xs truncate w-32 md:w-48">${r.subtema}</p></div><div class="flex gap-1"><button onclick="concluirRevisao(${r.id})" class="text-green-500 hover:text-green-700 dark:hover:text-green-400 p-2"><i class="fa-solid fa-check-circle text-xl"></i></button><button onclick="excluirRevisao(${r.id})" class="text-gray-400 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button></div></div>`; 
+    }); 
+    lr.innerHTML = htmlRev;
+}
+
+// BATCH RENDERING
 function renderizarTabelasEListas() {
-    const listaPdfs = document.getElementById('lista-pdfs'); listaPdfs.innerHTML = dadosEstudo.pdfs.length === 0 ? "<p class='text-gray-400 text-sm'>Nenhum material.</p>" : ""; dadosEstudo.pdfs.forEach(p => { let pct = p.totalPaginas > 0 ? Math.round((p.lidas / p.totalPaginas) * 100) : 0; let lHtml = p.link ? `<a href="${p.link}" target="_blank" class="text-blue-500 hover:underline text-xs">Abrir PDF</a>` : ``; listaPdfs.innerHTML += `<div class="border dark:border-gray-700 rounded p-3 bg-white dark:bg-gray-700 shadow-sm border-l-4 border-red-400"><div class="flex justify-between items-start mb-2"><div><p class="font-bold text-gray-800 dark:text-white text-sm">${p.nome}</p>${lHtml}</div><button onclick="deletarPdf(${p.id})" class="text-gray-300 dark:text-gray-500 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div><div class="flex justify-between text-xs text-gray-500 dark:text-gray-300 mb-1 font-bold"><span>Lidas: ${p.lidas}/${p.totalPaginas}</span> <span>Pág. ${p.ultimaPagina}</span></div><div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-3"><div class="bg-red-500 h-1.5 rounded-full" style="width: ${pct}%"></div></div><div class="flex items-center gap-1 text-xs"><input type="number" id="pdf-ini-${p.id}" placeholder="Início" class="border dark:border-gray-600 dark:bg-gray-800 dark:text-white p-1 w-12 rounded text-center"><span class="dark:text-gray-300">a</span><input type="number" id="pdf-fim-${p.id}" placeholder="Fim" class="border dark:border-gray-600 dark:bg-gray-800 dark:text-white p-1 w-12 rounded text-center"><button onclick="atualizarLeituraPdf(${p.id})" class="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 px-2 py-1 rounded font-bold hover:bg-green-200 dark:hover:bg-green-900 flex-1">+ Reg.</button></div></div>`; });
+    const listaPdfs = document.getElementById('lista-pdfs'); 
+    let htmlPdfs = dadosEstudo.pdfs.length === 0 ? "<p class='text-gray-400 text-sm'>Nenhum material.</p>" : ""; 
+    dadosEstudo.pdfs.forEach(p => { let pct = p.totalPaginas > 0 ? Math.round((p.lidas / p.totalPaginas) * 100) : 0; let lHtml = p.link ? `<a href="${p.link}" target="_blank" class="text-blue-500 hover:underline text-xs">Abrir PDF</a>` : ``; htmlPdfs += `<div class="border dark:border-gray-700 rounded p-3 bg-white dark:bg-gray-700 shadow-sm border-l-4 border-red-400"><div class="flex justify-between items-start mb-2"><div><p class="font-bold text-gray-800 dark:text-white text-sm">${p.nome}</p>${lHtml}</div><button onclick="deletarPdf(${p.id})" class="text-gray-300 dark:text-gray-500 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div><div class="flex justify-between text-xs text-gray-500 dark:text-gray-300 mb-1 font-bold"><span>Lidas: ${p.lidas}/${p.totalPaginas}</span> <span>Pág. ${p.ultimaPagina}</span></div><div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-3"><div class="bg-red-500 h-1.5 rounded-full" style="width: ${pct}%"></div></div><div class="flex items-center gap-1 text-xs"><input type="number" id="pdf-ini-${p.id}" placeholder="Início" class="border dark:border-gray-600 dark:bg-gray-800 dark:text-white p-1 w-12 rounded text-center"><span class="dark:text-gray-300">a</span><input type="number" id="pdf-fim-${p.id}" placeholder="Fim" class="border dark:border-gray-600 dark:bg-gray-800 dark:text-white p-1 w-12 rounded text-center"><button onclick="atualizarLeituraPdf(${p.id})" class="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 px-2 py-1 rounded font-bold hover:bg-green-200 dark:hover:bg-green-900 flex-1">+ Reg.</button></div></div>`; });
+    listaPdfs.innerHTML = htmlPdfs;
     
-    const selMatQ = document.getElementById('select-materia-questoes'); selMatQ.innerHTML = '<option value="">Selecione...</option>'; 
-    const selMatT = document.getElementById('select-materia-tempo'); selMatT.innerHTML = '<option value="" disabled selected>Selecione a matéria...</option>'; 
-    const selMatF = document.getElementById('select-materia-flashcard'); selMatF.innerHTML = '<option value="" disabled selected>Selecione a matéria...</option>';
-    const selMatR = document.getElementById('select-materia-resumo'); selMatR.innerHTML = '<option value="" disabled selected>Selecione a matéria...</option>';
-    
-    const filtroF = document.getElementById('filtro-flashcard'); filtroF.innerHTML = '<option value="todas">Todas as Matérias</option>';
-    const filtroR = document.getElementById('filtro-resumo'); filtroR.innerHTML = '<option value="todas">Todas as Matérias</option>';
-
-    const tabQ = document.getElementById('tabela-questoes'); tabQ.innerHTML = "";
+    let htmlMatQ = '<option value="">Selecione...</option>'; 
+    let htmlMatT = '<option value="" disabled selected>Selecione a matéria...</option>'; 
+    let htmlMatF = '<option value="" disabled selected>Selecione a matéria...</option>';
+    let htmlMatR = '<option value="" disabled selected>Selecione a matéria...</option>';
+    let htmlFiltroF = '<option value="todas">Todas as Matérias</option>';
+    let htmlFiltroR = '<option value="todas">Todas as Matérias</option>';
+    let htmlTabQ = "";
 
     dadosEstudo.materias.forEach((mat, iMat) => { 
-        selMatQ.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; 
-        selMatT.innerHTML += `<option value="${iMat}">${mat.nome}</option>`; 
-        selMatF.innerHTML += `<option value="${mat.nome}">${mat.nome}</option>`; 
-        selMatR.innerHTML += `<option value="${mat.nome}">${mat.nome}</option>`; 
-        filtroF.innerHTML += `<option value="${mat.nome}">${mat.nome}</option>`; 
-        filtroR.innerHTML += `<option value="${mat.nome}">${mat.nome}</option>`; 
+        htmlMatQ += `<option value="${iMat}">${mat.nome}</option>`; 
+        htmlMatT += `<option value="${iMat}">${mat.nome}</option>`; 
+        htmlMatF += `<option value="${mat.nome}">${mat.nome}</option>`; 
+        htmlMatR += `<option value="${mat.nome}">${mat.nome}</option>`; 
+        htmlFiltroF += `<option value="${mat.nome}">${mat.nome}</option>`; 
+        htmlFiltroR += `<option value="${mat.nome}">${mat.nome}</option>`; 
 
-        if(mat.questoes) { const tM = mat.questoes.acertos + mat.questoes.erros; const pctM = tM === 0 ? 0 : Math.round((mat.questoes.acertos / tM)*100); tabQ.innerHTML += `<tr class="border-b dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50"><td class="py-2 font-bold text-gray-700 dark:text-gray-200">${mat.nome}</td> <td class="py-2 text-center text-gray-500 dark:text-gray-400">${tM}</td><td class="py-2 text-center font-bold text-green-600 dark:text-green-400">${mat.questoes.acertos}</td> <td class="py-2 text-center font-bold text-red-500 dark:text-red-400">${mat.questoes.erros}</td><td class="py-2 text-right font-black ${pctM >= 80 ? 'text-green-600 dark:text-green-400' : (pctM>=60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400')}">${pctM}%</td> </tr>`; } 
+        if(mat.questoes) { const tM = mat.questoes.acertos + mat.questoes.erros; const pctM = tM === 0 ? 0 : Math.round((mat.questoes.acertos / tM)*100); htmlTabQ += `<tr class="border-b dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50"><td class="py-2 font-bold text-gray-700 dark:text-gray-200">${mat.nome}</td> <td class="py-2 text-center text-gray-500 dark:text-gray-400">${tM}</td><td class="py-2 text-center font-bold text-green-600 dark:text-green-400">${mat.questoes.acertos}</td> <td class="py-2 text-center font-bold text-red-500 dark:text-red-400">${mat.questoes.erros}</td><td class="py-2 text-right font-black ${pctM >= 80 ? 'text-green-600 dark:text-green-400' : (pctM>=60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400')}">${pctM}%</td> </tr>`; } 
     });
+
+    document.getElementById('select-materia-questoes').innerHTML = htmlMatQ;
+    document.getElementById('select-materia-tempo').innerHTML = htmlMatT;
+    document.getElementById('select-materia-flashcard').innerHTML = htmlMatF;
+    document.getElementById('select-materia-resumo').innerHTML = htmlMatR;
+    document.getElementById('filtro-flashcard').innerHTML = htmlFiltroF;
+    document.getElementById('filtro-resumo').innerHTML = htmlFiltroR;
+    document.getElementById('tabela-questoes').innerHTML = htmlTabQ;
 }
 
 function atualizarGraficos() {
