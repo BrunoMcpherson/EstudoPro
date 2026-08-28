@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- NOME OFICIAL DA ABA -->
     <title>EstudoPro</title>
-    <!-- ÍCONE DO CAPELO ROXO -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath fill='%234f46e5' d='M320 32L64 160l256 128 256-128L320 32zm0 256L128 224v128c0 53 86 96 192 96s192-43 192-96V224L320 288z'/%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -14,105 +12,67 @@
 </head>
 <body class="flex h-screen overflow-hidden text-gray-800">
 
-    <!-- TELA DE LOGIN / CADASTRO -->
+    <!-- LOGIN / CADASTRO -->
     <div id="tela-login" class="fixed inset-0 z-50 flex items-center justify-center bg-login">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md mx-4 transition-all">
             <div class="text-center mb-6">
                 <h1 class="text-4xl font-black text-indigo-700 mb-2"><i class="fa-solid fa-cloud"></i> EstudoPro</h1>
                 <p class="text-gray-500 font-semibold" id="auth-subtitle">Acesse sua conta</p>
             </div>
-
-            <!-- FORMULÁRIO DE LOGIN -->
+            <!-- FORMULÁRIO LOGIN -->
             <div id="form-login" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">E-mail</label>
-                    <input type="email" id="login-email" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" placeholder="seu@email.com">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Senha</label>
-                    <input type="password" id="login-senha" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" placeholder="******">
-                </div>
+                <div><label class="block text-sm font-bold text-gray-700 mb-1">E-mail</label><input type="email" id="login-email" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50"></div>
+                <div><label class="block text-sm font-bold text-gray-700 mb-1">Senha</label><input type="password" id="login-senha" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50"></div>
                 <button onclick="fazerLogin()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 shadow-md transition mt-2">Entrar</button>
                 <p class="text-center text-sm font-bold text-gray-500 mt-4 cursor-pointer hover:text-indigo-600 transition" onclick="alternarAuth('cadastro')">Não tem conta? Crie uma aqui.</p>
             </div>
-
-            <!-- FORMULÁRIO DE CADASTRO -->
+            <!-- FORMULÁRIO CADASTRO -->
             <div id="form-cadastro" class="space-y-4 hidden">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Nome Completo</label>
-                    <input type="text" id="cad-nome" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" placeholder="João da Silva">
-                </div>
+                <div><label class="block text-sm font-bold text-gray-700 mb-1">Nome Completo</label><input type="text" id="cad-nome" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50"></div>
                 <div class="flex gap-2">
-                    <div class="w-1/3">
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Idade</label>
-                        <input type="number" id="cad-idade" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" placeholder="Ex: 25">
-                    </div>
-                    <div class="w-2/3">
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Celular (WhatsApp)</label>
-                        <input type="text" id="cad-telefone" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" placeholder="(11) 99999-9999">
-                    </div>
+                    <div class="w-1/3"><label class="block text-sm font-bold text-gray-700 mb-1">Idade</label><input type="number" id="cad-idade" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50"></div>
+                    <div class="w-2/3"><label class="block text-sm font-bold text-gray-700 mb-1">WhatsApp</label><input type="text" id="cad-telefone" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50"></div>
                 </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">E-mail</label>
-                    <input type="email" id="cad-email" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" placeholder="seu@email.com">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Senha (Mín. 6 caracteres)</label>
-                    <input type="password" id="cad-senha" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" placeholder="******">
-                </div>
+                <div><label class="block text-sm font-bold text-gray-700 mb-1">E-mail</label><input type="email" id="cad-email" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50"></div>
+                <div><label class="block text-sm font-bold text-gray-700 mb-1">Senha (Mín. 6)</label><input type="password" id="cad-senha" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50"></div>
                 <button onclick="criarConta()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 shadow-md transition mt-2">Finalizar Cadastro</button>
                 <p class="text-center text-sm font-bold text-gray-500 mt-4 cursor-pointer hover:text-indigo-600 transition" onclick="alternarAuth('login')">Já tem conta? Voltar ao Login.</p>
             </div>
-
             <p id="auth-mensagem" class="text-center text-sm font-bold hidden mt-4"></p>
         </div>
     </div>
 
-    <!-- TELA DE CARREGAMENTO -->
+    <!-- CARREGAMENTO -->
     <div id="tela-loading" class="fixed inset-0 z-40 flex items-center justify-center bg-white hidden">
-        <div class="text-center">
-            <i class="fa-solid fa-circle-notch fa-spin text-5xl text-indigo-600 mb-4"></i>
-            <p class="font-bold text-gray-600">Sincronizando dados com a nuvem...</p>
-        </div>
+        <div class="text-center"><i class="fa-solid fa-circle-notch fa-spin text-5xl text-indigo-600 mb-4"></i><p class="font-bold text-gray-600">Sincronizando dados...</p></div>
     </div>
 
-    <!-- ÁREA PRINCIPAL DO APLICATIVO -->
+    <!-- APP PRINCIPAL -->
     <main id="app-principal" class="hidden flex-1 overflow-y-auto p-4 md:p-8 scroll-custom relative bg-gray-100">
         
-        <!-- HEADER -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-3xl font-bold text-gray-800"><i class="fa-solid fa-graduation-cap text-indigo-600 mr-2"></i> EstudoPro</h1>
             <div class="flex gap-2">
-                <div class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-lg font-bold text-sm shadow-sm flex items-center gap-2">
-                    <i class="fa-solid fa-cloud-check text-green-500"></i> Salvo na Nuvem
-                </div>
-                <button onclick="sairConta()" class="bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600 shadow-md text-sm transition"><i class="fa-solid fa-right-from-bracket mr-1"></i> Sair da Conta</button>
+                <div class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-lg font-bold text-sm shadow-sm flex items-center gap-2"><i class="fa-solid fa-cloud-check text-green-500"></i> Salvo na Nuvem</div>
+                <button onclick="sairConta()" class="bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600 shadow-md text-sm transition"><i class="fa-solid fa-right-from-bracket mr-1"></i> Sair</button>
             </div>
         </div>
 
-        <!-- PAINEL DO CONCURSO -->
+        <!-- CONCURSO -->
         <div class="bg-gradient-to-r from-indigo-700 to-indigo-900 rounded-2xl p-6 text-white mb-2 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="w-full md:w-1/2">
-                <p class="text-indigo-200 text-sm mb-1 uppercase tracking-wider font-bold">🎯 Foco Atual (Concurso)</p>
+                <p class="text-indigo-200 text-sm mb-1 uppercase tracking-wider font-bold">🎯 Foco Atual</p>
                 <div class="flex gap-2 items-center">
                     <select id="select-concurso" onchange="mudarConcursoAtivo()" class="bg-transparent border-b-2 border-indigo-400 text-2xl font-bold text-white w-full focus:outline-none focus:border-white appearance-none cursor-pointer text-ellipsis overflow-hidden whitespace-nowrap"></select>
-                    <button onclick="mostrarFormConcurso()" class="bg-indigo-500 hover:bg-indigo-400 text-white w-10 h-10 rounded-lg transition shrink-0" title="Adicionar Novo"><i class="fa-solid fa-plus"></i></button>
-                    <button onclick="deletarConcursoAtivo()" class="bg-red-500 hover:bg-red-400 text-white w-10 h-10 rounded-lg transition shrink-0" title="Apagar Concurso"><i class="fa-solid fa-trash"></i></button>
+                    <button onclick="mostrarFormConcurso()" class="bg-indigo-500 hover:bg-indigo-400 text-white w-10 h-10 rounded-lg transition shrink-0"><i class="fa-solid fa-plus"></i></button>
+                    <button onclick="deletarConcursoAtivo()" class="bg-red-500 hover:bg-red-400 text-white w-10 h-10 rounded-lg transition shrink-0"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </div>
             <div class="flex items-center gap-4 w-full md:w-auto">
-                <div class="flex flex-col text-right">
-                    <label class="text-indigo-200 text-sm font-bold">Data da Prova:</label>
-                    <span id="display-concurso-data" class="text-xl font-bold">--/--/----</span>
-                </div>
-                <div class="bg-white text-indigo-900 px-6 py-3 rounded-xl shadow text-center min-w-[100px]">
-                    <p class="text-xs font-bold uppercase text-gray-500">Faltam</p>
-                    <p class="text-3xl font-black" id="dias-restantes">--</p>
-                </div>
+                <div class="flex flex-col text-right"><label class="text-indigo-200 text-sm font-bold">Data da Prova:</label><span id="display-concurso-data" class="text-xl font-bold">--/--/----</span></div>
+                <div class="bg-white text-indigo-900 px-6 py-3 rounded-xl shadow text-center min-w-[100px]"><p class="text-xs font-bold uppercase text-gray-500">Faltam</p><p class="text-3xl font-black" id="dias-restantes">--</p></div>
             </div>
         </div>
-
-        <!-- FORMULÁRIO NOVO CONCURSO -->
         <div id="form-novo-concurso" class="hidden glass p-4 rounded-xl border border-indigo-200 mb-6 flex-col md:flex-row gap-2 shadow-sm">
             <input type="text" id="novo-concurso-nome" placeholder="Nome do Concurso (Ex: PF)" class="p-2 border rounded-lg flex-1">
             <input type="date" id="novo-concurso-data" class="p-2 border rounded-lg text-gray-700">
@@ -120,45 +80,25 @@
             <button onclick="esconderFormConcurso()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300">Cancelar</button>
         </div>
 
-        <!-- ESTATÍSTICAS GLOBAIS -->
+        <!-- ESTATÍSTICAS -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 mt-6">
-            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-400">
-                <p class="text-xs text-gray-500 font-bold uppercase">Ofensiva</p>
-                <p class="text-2xl font-black text-gray-800"><i class="fa-solid fa-fire ofensiva-fire mr-1"></i><span id="display-ofensiva">0</span></p>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-indigo-400 relative group">
-                <button onclick="resetarTempo()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition" title="Zerar Tempo"><i class="fa-solid fa-trash"></i></button>
-                <p class="text-xs text-gray-500 font-bold uppercase">Horas Estudadas</p>
-                <p class="text-2xl font-black text-gray-800"><i class="fa-solid fa-clock text-indigo-500 mr-1"></i><span id="display-tempo">0h</span></p>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-400 relative group">
-                <button onclick="resetarPomodoros()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition" title="Zerar Pomodoros"><i class="fa-solid fa-trash"></i></button>
-                <p class="text-xs text-gray-500 font-bold uppercase">Pomodoros</p>
-                <p class="text-2xl font-black text-gray-800"><i class="fa-solid fa-stopwatch text-blue-500 mr-1"></i><span id="display-pomodoros">0</span></p>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-400 relative group">
-                <button onclick="resetarPaginas()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition" title="Zerar Páginas e PDFs"><i class="fa-solid fa-trash"></i></button>
-                <p class="text-xs text-gray-500 font-bold uppercase">Páginas Lidas</p>
-                <p class="text-2xl font-black text-gray-800"><i class="fa-solid fa-book-open text-green-500 mr-1"></i><span id="display-paginas">0</span></p>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-purple-400 relative group">
-                <button onclick="resetarQuestoes()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition" title="Zerar Todas as Questões"><i class="fa-solid fa-trash"></i></button>
-                <p class="text-xs text-gray-500 font-bold uppercase">Questões Totais</p>
-                <p class="text-2xl font-black text-gray-800"><i class="fa-solid fa-check-double text-purple-500 mr-1"></i><span id="display-questoes-totais">0</span></p>
-            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-400"><p class="text-xs text-gray-500 font-bold uppercase">Ofensiva</p><p class="text-2xl font-black text-gray-800"><i class="fa-solid fa-fire ofensiva-fire mr-1"></i><span id="display-ofensiva">0</span></p></div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-indigo-400 relative group"><button onclick="resetarTempo()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 font-bold uppercase">Horas</p><p class="text-2xl font-black text-gray-800"><i class="fa-solid fa-clock text-indigo-500 mr-1"></i><span id="display-tempo">0h</span></p></div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-400 relative group"><button onclick="resetarPomodoros()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 font-bold uppercase">Pomodoros</p><p class="text-2xl font-black text-gray-800"><i class="fa-solid fa-stopwatch text-blue-500 mr-1"></i><span id="display-pomodoros">0</span></p></div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-400 relative group"><button onclick="resetarPaginas()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 font-bold uppercase">Páginas</p><p class="text-2xl font-black text-gray-800"><i class="fa-solid fa-book-open text-green-500 mr-1"></i><span id="display-paginas">0</span></p></div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-purple-400 relative group"><button onclick="resetarQuestoes()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 font-bold uppercase">Questões</p><p class="text-2xl font-black text-gray-800"><i class="fa-solid fa-check-double text-purple-500 mr-1"></i><span id="display-questoes-totais">0</span></p></div>
         </div>
 
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <!-- COLUNA 1 -->
             <div class="space-y-6">
-                <!-- GESTÃO DE TEMPO COM A NOVA ABA MANUAL -->
+                <!-- GESTÃO DE TEMPO -->
                 <div class="glass p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
                     <div class="mb-4 text-left">
-                        <label class="text-xs font-bold text-gray-500 uppercase">Matéria Atual:</label>
+                        <label class="text-xs font-bold text-gray-500 uppercase">Matéria Atual (Obrigatória):</label>
+                        <!-- A OPÇÃO GERAL FOI REMOVIDA -->
                         <select id="select-materia-tempo" class="w-full p-2 border rounded-lg bg-gray-50 font-bold text-gray-700 mt-1 focus:ring-2 focus:ring-indigo-500"></select>
                     </div>
-                    
-                    <!-- BOTÕES DAS ABAS (Agora são 3) -->
                     <div class="flex justify-center gap-4 border-b mb-4 pb-2">
                         <button id="tab-btn-pomo" onclick="mudarAbaTempo('pomo')" class="font-bold tab-active pb-1 text-sm uppercase">Pomodoro</button>
                         <button id="tab-btn-crono" onclick="mudarAbaTempo('crono')" class="font-bold text-gray-400 hover:text-indigo-600 pb-1 text-sm uppercase transition">Cronômetro</button>
@@ -173,9 +113,10 @@
                         </div>
                         <div class="text-6xl font-black text-indigo-600 mb-4 font-mono tracking-wider" id="display-pomo">25:00</div>
                         <div class="flex justify-center gap-2 mb-2">
+                            <!-- BOTÕES CORRIGIDOS -->
                             <button onclick="iniciarPomodoro(true)" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold w-1/3">Focar</button>
-                            <button onclick="pausarPomodoroTimer()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold w-1/3">Pausar</button>
-                            <button onclick="iniciarPomodoro(false)" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold w-1/3 text-sm">Pausa</button>
+                            <button onclick="pausarPomodoroTimer()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold w-1/3 text-sm">Pausar</button>
+                            <button onclick="iniciarPomodoro(false)" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold w-1/3 text-sm">Descansar</button>
                         </div>
                         <button onclick="pararPomodoro()" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg font-bold w-full text-sm">Parar/Resetar</button>
                     </div>
@@ -191,23 +132,14 @@
                         <button onclick="pararESalvarCrono()" class="mt-2 bg-gray-100 text-gray-700 hover:bg-gray-200 px-4 py-2 rounded-lg font-bold w-full text-sm"><i class="fa-solid fa-save mr-1"></i> Encerrar e Salvar</button>
                     </div>
 
-                    <!-- NOVA ABA: MANUAL -->
+                    <!-- ABA MANUAL -->
                     <div id="aba-manual" class="hidden">
                         <p class="text-xs text-gray-500 mb-4 font-bold uppercase">Adicionar Tempo Externo</p>
                         <div class="flex justify-center items-center gap-4 mb-4">
-                            <div class="flex flex-col items-center">
-                                <input type="number" id="manual-horas" min="0" class="w-20 text-3xl text-center border-2 border-gray-200 rounded-lg p-2 font-black text-gray-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="0">
-                                <span class="text-xs text-gray-400 font-bold mt-2 uppercase tracking-wide">Horas</span>
-                            </div>
-                            <span class="text-3xl font-black text-gray-300 pb-5">:</span>
-                            <div class="flex flex-col items-center">
-                                <input type="number" id="manual-minutos" min="0" max="59" class="w-20 text-3xl text-center border-2 border-gray-200 rounded-lg p-2 font-black text-gray-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="0">
-                                <span class="text-xs text-gray-400 font-bold mt-2 uppercase tracking-wide">Minutos</span>
-                            </div>
+                            <div class="flex flex-col items-center"><input type="number" id="manual-horas" min="0" class="w-20 text-3xl text-center border-2 border-gray-200 rounded-lg p-2 font-black text-gray-700 outline-none focus:border-indigo-500" placeholder="0"><span class="text-xs text-gray-400 font-bold mt-2">Horas</span></div><span class="text-3xl font-black text-gray-300 pb-5">:</span>
+                            <div class="flex flex-col items-center"><input type="number" id="manual-minutos" min="0" max="59" class="w-20 text-3xl text-center border-2 border-gray-200 rounded-lg p-2 font-black text-gray-700 outline-none focus:border-indigo-500" placeholder="0"><span class="text-xs text-gray-400 font-bold mt-2">Minutos</span></div>
                         </div>
-                        <button onclick="salvarTempoManual()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg font-bold w-full shadow-md transition-all">
-                            <i class="fa-solid fa-plus mr-1"></i> Registrar Manualmente
-                        </button>
+                        <button onclick="salvarTempoManual()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg font-bold w-full shadow-md"><i class="fa-solid fa-plus mr-1"></i> Registrar Manual</button>
                     </div>
                 </div>
 
@@ -216,13 +148,11 @@
                     <h2 class="text-lg font-bold text-gray-700 mb-4 flex justify-between items-center group relative">
                         <span><i class="fa-regular fa-calendar-check text-green-500 mr-2"></i> Calendário</span>
                         <div class="flex gap-2 items-center">
-                            <button onclick="resetarCalendario()" class="text-gray-300 hover:text-red-500 hidden group-hover:block transition" title="Limpar Calendário Visual"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick="resetarCalendario()" class="text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button>
                             <span class="text-xs text-gray-400 font-normal" id="mes-atual-label"></span>
                         </div>
                     </h2>
-                    <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-400 mb-1">
-                        <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
-                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-400 mb-1"><div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div></div>
                     <div id="calendario-grid" class="grid grid-cols-7 gap-1 text-center text-xs"></div>
                 </div>
 
@@ -231,10 +161,7 @@
                     <h2 class="text-lg font-bold text-gray-700 mb-4"><i class="fa-solid fa-file-pdf text-red-500 mr-2"></i> Meus PDFs</h2>
                     <div class="bg-gray-50 p-3 rounded-lg border mb-4">
                         <input type="text" id="pdf-nome" placeholder="Assunto (Ex: Inquérito)" class="w-full p-2 border rounded mb-2 text-sm outline-none focus:ring-1 focus:ring-indigo-300">
-                        <div class="flex gap-2 mb-2">
-                            <input type="url" id="pdf-link" placeholder="Link (Opcional)" class="w-2/3 p-2 border rounded text-sm outline-none focus:ring-1 focus:ring-indigo-300">
-                            <input type="number" id="pdf-total" placeholder="Total Pág." class="w-1/3 p-2 border rounded text-sm outline-none focus:ring-1 focus:ring-indigo-300">
-                        </div>
+                        <div class="flex gap-2 mb-2"><input type="url" id="pdf-link" placeholder="Link (Opcional)" class="w-2/3 p-2 border rounded text-sm"><input type="number" id="pdf-total" placeholder="Total Pág." class="w-1/3 p-2 border rounded text-sm"></div>
                         <button onclick="adicionarPdf()" class="w-full bg-red-500 text-white py-2 rounded font-bold hover:bg-red-600 text-sm">Salvar Material</button>
                     </div>
                     <div id="lista-pdfs" class="space-y-4 max-h-64 overflow-y-auto scroll-custom pr-2"></div>
@@ -247,9 +174,15 @@
                 <div class="glass p-6 rounded-2xl shadow-sm border border-gray-100 bg-orange-50">
                     <div class="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-2">
                         <h2 class="text-lg font-bold text-orange-700"><i class="fa-solid fa-clock-rotate-left mr-2"></i> Revisões Pendentes</h2>
-                        <div class="flex items-center gap-2 bg-white px-3 py-1 rounded border shadow-sm">
-                            <span class="text-xs text-gray-500 font-bold">Intervalos:</span>
-                            <input type="text" id="config-revisoes-input" onchange="salvarConfigRevisoes()" class="text-xs p-1 border-b border-orange-300 outline-none w-32 text-center font-bold text-orange-600">
+                        <div class="flex items-center gap-4">
+                            <!-- CHECKBOX DE REVISÃO AUTOMÁTICA -->
+                            <label class="text-xs font-bold text-gray-600 flex items-center gap-1 cursor-pointer">
+                                <input type="checkbox" id="check-rev-auto" onchange="toggleRevisaoAuto()" class="w-4 h-4 text-orange-500 rounded focus:ring-orange-400"> Agendar Auto.
+                            </label>
+                            <div class="flex items-center gap-2 bg-white px-3 py-1 rounded border shadow-sm">
+                                <span class="text-xs text-gray-500 font-bold">Intervalos:</span>
+                                <input type="text" id="config-revisoes-input" onchange="salvarConfigRevisoes()" class="text-xs p-1 border-b border-orange-300 outline-none w-32 text-center font-bold text-orange-600">
+                            </div>
                         </div>
                     </div>
                     <div id="lista-revisoes" class="space-y-3 max-h-48 overflow-y-auto scroll-custom pr-2"></div>
@@ -262,37 +195,27 @@
                         <div class="w-full md:w-1/3 space-y-3">
                             <select id="select-materia-questoes" class="w-full p-2 border rounded-lg bg-gray-50 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"></select>
                             <div class="flex gap-2">
-                                <input type="number" id="input-acertos" placeholder="Acertos" class="w-1/2 p-2 border border-green-300 rounded-lg text-green-700 font-bold outline-none focus:ring-2 focus:ring-green-400">
-                                <input type="number" id="input-erros" placeholder="Erros" class="w-1/2 p-2 border border-red-300 rounded-lg text-red-700 font-bold outline-none focus:ring-2 focus:ring-red-400">
+                                <input type="number" id="input-acertos" placeholder="Acertos" class="w-1/2 p-2 border border-green-300 rounded-lg text-green-700 font-bold outline-none">
+                                <input type="number" id="input-erros" placeholder="Erros" class="w-1/2 p-2 border border-red-300 rounded-lg text-red-700 font-bold outline-none">
                             </div>
                             <button onclick="salvarQuestoes()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition">Registrar Questões</button>
                         </div>
                         <div class="w-full md:w-2/3 bg-gray-50 rounded-lg p-4 border max-h-48 overflow-y-auto scroll-custom">
-                            <table class="w-full text-sm text-left">
-                                <thead class="text-gray-500 uppercase font-bold text-xs border-b"><tr><th class="pb-2">Matéria</th><th class="pb-2 text-center">Total</th><th class="pb-2 text-center text-green-600">✓</th><th class="pb-2 text-center text-red-500">✗</th><th class="pb-2 text-right">%</th></tr></thead>
-                                <tbody id="tabela-questoes"></tbody>
-                            </table>
+                            <table class="w-full text-sm text-left"><thead class="text-gray-500 uppercase font-bold text-xs border-b"><tr><th class="pb-2">Matéria</th><th class="pb-2 text-center">Total</th><th class="pb-2 text-center text-green-600">✓</th><th class="pb-2 text-center text-red-500">✗</th><th class="pb-2 text-right">%</th></tr></thead><tbody id="tabela-questoes"></tbody></table>
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4 mb-6">
-                        <div class="h-48 flex justify-center"><canvas id="graficoGeral"></canvas></div>
-                        <div class="h-48 flex justify-center"><canvas id="graficoMaterias"></canvas></div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t pt-4">
-                        <div><h3 class="text-sm font-bold text-gray-500 mb-2">Evolução (Últimos 7 dias)</h3><div class="h-56 w-full"><canvas id="graficoEvolucao"></canvas></div></div>
-                        <div><h3 class="text-sm font-bold text-gray-500 mb-2">Tempo por Matéria (Horas)</h3><div class="h-56 w-full"><canvas id="graficoTempoMateria"></canvas></div></div>
-                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4 mb-6"><div class="h-48 flex justify-center"><canvas id="graficoGeral"></canvas></div><div class="h-48 flex justify-center"><canvas id="graficoMaterias"></canvas></div></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t pt-4"><div><h3 class="text-sm font-bold text-gray-500 mb-2">Evolução (Últimos 7 dias)</h3><div class="h-56 w-full"><canvas id="graficoEvolucao"></canvas></div></div><div><h3 class="text-sm font-bold text-gray-500 mb-2">Tempo por Matéria (Horas)</h3><div class="h-56 w-full"><canvas id="graficoTempoMateria"></canvas></div></div></div>
                 </div>
 
                 <!-- EDITAL -->
                 <div class="glass p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4">
                     <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-list-check text-indigo-500 mr-2"></i> Meu Edital</h2>
                     <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                        <p class="text-sm font-bold text-indigo-800 mb-2">Adicionar Matéria Rápida (Vírgula, Ponto ou Linha)</p>
+                        <p class="text-sm font-bold text-indigo-800 mb-2">Adicionar Matéria Rápida</p>
                         <div class="flex flex-col md:flex-row gap-2 mb-2">
                             <input type="text" id="nova-materia" placeholder="Nome..." class="w-full md:w-1/3 p-2 border rounded outline-none focus:ring-1 focus:ring-indigo-400">
-                            <input type="text" id="texto-edital" placeholder="Tópico 1, Tópico 2..." class="w-full md:w-2/3 p-2 border rounded text-sm outline-none focus:ring-1 focus:ring-indigo-400">
+                            <input type="text" id="texto-edital" placeholder="Tópico 1, Tópico 2..." class="w-full md:w-2/3 p-2 border rounded text-sm outline-none">
                             <button onclick="adicionarMateriaEmMassa()" class="bg-indigo-600 text-white px-4 rounded font-bold hover:bg-indigo-700">Add</button>
                         </div>
                     </div>
