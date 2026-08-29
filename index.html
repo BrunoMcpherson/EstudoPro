@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EstudoPro</title>
+    <title>EstudoPro V2.0</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath fill='%234f46e5' d='M320 32L64 160l256 128 256-128L320 32zm0 256L128 224v128c0 53 86 96 192 96s192-43 192-96V224L320 288z'/%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
     <script> tailwind.config = { darkMode: 'class' } </script>
@@ -17,11 +17,16 @@
         .rotate-y-180 { transform: rotateY(180deg); }
         .flip-card-inner { transition: transform 0.6s; transform-style: preserve-3d; }
         .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+        
+        /* CSS PARA RECOLHER A BARRA LATERAL */
+        .sidebar-collapsed { width: 5rem !important; }
+        .sidebar-collapsed .menu-texto, .sidebar-collapsed #logo-texto { display: none !important; }
+        .sidebar-collapsed .menu-icon { margin-left: auto; margin-right: auto; }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden text-gray-800 dark:text-gray-100 bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 transition-colors duration-300 overflow-hidden font-sans">
 
-    <!-- LOGIN / CADASTRO -->
+    <!-- TELA DE LOGIN / CADASTRO -->
     <div id="tela-login" class="fixed inset-0 z-50 flex items-center justify-center bg-login">
         <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md mx-4 transition-all border dark:border-gray-700">
             <div class="text-center mb-6">
@@ -49,266 +54,331 @@
         </div>
     </div>
 
-    <!-- CARREGAMENTO -->
     <div id="tela-loading" class="fixed inset-0 z-40 flex items-center justify-center bg-white dark:bg-gray-900 hidden">
         <div class="text-center"><i class="fa-solid fa-circle-notch fa-spin text-5xl text-indigo-600 dark:text-indigo-400 mb-4"></i><p class="font-bold text-gray-600 dark:text-gray-300">Sincronizando dados...</p></div>
     </div>
 
-    <!-- APP PRINCIPAL - ACELERAÇÃO GPU ADICIONADA -->
-    <main id="app-principal" class="hidden flex-1 overflow-y-auto p-4 md:p-8 scroll-custom relative transform-gpu">
+    <!-- ESTRUTURA PRINCIPAL (SIDEBAR + CONTEÚDO) -->
+    <div id="app-principal" class="hidden flex h-screen w-full">
         
-        <!-- HEADER TOP -->
-        <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-            <h1 class="text-3xl font-bold text-gray-800 dark:text-white"><i class="fa-solid fa-graduation-cap text-indigo-600 dark:text-indigo-400 mr-2"></i> EstudoPro</h1>
-            <div class="flex gap-2">
-                <button onclick="toggleDarkMode()" class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-yellow-400 px-3 py-2 rounded-lg font-bold shadow-sm hover:bg-gray-300 dark:hover:bg-gray-600 transition" title="Alternar Modo Noturno"><i class="fa-solid fa-moon"></i></button>
-                <div class="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-4 py-2 rounded-lg font-bold text-sm shadow-sm flex items-center gap-2"><i class="fa-solid fa-cloud-check text-green-500"></i> Nuvem</div>
-                <button onclick="sairConta()" class="bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600 shadow-md text-sm transition"><i class="fa-solid fa-right-from-bracket mr-1"></i> Sair</button>
+        <!-- SIDEBAR (MENU LATERAL) -->
+        <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 shadow-xl border-r dark:border-gray-700 flex flex-col z-20 flex-shrink-0 transition-all duration-300">
+            <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 px-4">
+                <i class="fa-solid fa-graduation-cap text-indigo-600 dark:text-indigo-400 text-2xl mr-0 md:mr-2 menu-icon"></i>
+                <h1 id="logo-texto" class="text-2xl font-black text-gray-800 dark:text-white tracking-tight">EstudoPro</h1>
             </div>
-        </div>
-
-        <!-- MENU DE NAVEGAÇÃO PRINCIPAL -->
-        <div class="flex gap-6 border-b dark:border-gray-700 mb-6 pb-2">
-            <button onclick="mudarViewPrincipal('dashboard')" id="nav-dashboard" class="font-black text-lg text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 pb-1 transition">📊 Dashboard</button>
-            <button onclick="mudarViewPrincipal('materiais')" id="nav-materiais" class="font-bold text-lg text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 pb-1 transition">🧠 Meus Materiais</button>
-        </div>
-
-        <!-- ============================================== -->
-        <!-- VIEW 1: DASHBOARD -->
-        <!-- ============================================== -->
-        <div id="view-dashboard" class="block">
-            <!-- CONCURSO -->
-            <div class="bg-gradient-to-r from-indigo-700 to-indigo-900 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 text-white mb-2 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4 border dark:border-gray-700">
-                <div class="w-full md:w-1/2">
-                    <p class="text-indigo-200 dark:text-gray-400 text-sm mb-1 uppercase tracking-wider font-bold">🎯 Foco Atual</p>
-                    <div class="flex gap-2 items-center">
-                        <select id="select-concurso" onchange="mudarConcursoAtivo()" class="bg-transparent border-b-2 border-indigo-400 dark:border-gray-500 text-2xl font-bold text-white w-full focus:outline-none focus:border-white appearance-none cursor-pointer text-ellipsis overflow-hidden whitespace-nowrap"></select>
-                        <button onclick="mostrarFormConcurso()" class="bg-indigo-500 dark:bg-gray-700 hover:bg-indigo-400 dark:hover:bg-gray-600 text-white w-10 h-10 rounded-lg transition shrink-0"><i class="fa-solid fa-plus"></i></button>
-                        <button onclick="deletarConcursoAtivo()" class="bg-red-500 hover:bg-red-400 text-white w-10 h-10 rounded-lg transition shrink-0"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                </div>
-                <div class="flex items-center gap-4 w-full md:w-auto">
-                    <div class="flex flex-col text-right"><label class="text-indigo-200 dark:text-gray-400 text-sm font-bold">Data da Prova:</label><span id="display-concurso-data" class="text-xl font-bold">--/--/----</span></div>
-                    <div class="bg-white dark:bg-gray-800 text-indigo-900 dark:text-white px-6 py-3 rounded-xl shadow text-center min-w-[100px]"><p class="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Faltam</p><p class="text-3xl font-black" id="dias-restantes">--</p></div>
-                </div>
-            </div>
-            <div id="form-novo-concurso" class="hidden bg-white dark:bg-gray-800 p-4 rounded-xl border border-indigo-200 dark:border-gray-700 mb-6 flex-col md:flex-row gap-2 shadow-sm">
-                <input type="text" id="novo-concurso-nome" placeholder="Nome do Concurso" class="p-2 border dark:border-gray-600 rounded-lg flex-1 bg-white dark:bg-gray-700 dark:text-white">
-                <input type="date" id="novo-concurso-data" class="p-2 border dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700">
-                <button onclick="adicionarConcurso()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700">Salvar Prova</button>
-                <button onclick="esconderFormConcurso()" class="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-500">Cancelar</button>
-            </div>
-
-            <!-- ESTATÍSTICAS GLOBAIS -->
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 mt-6">
-                <div class="bg-white dark:bg-gray-800 dark:border-gray-700 p-4 rounded-xl shadow-sm border-l-4 border-orange-400"><p class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Ofensiva</p><p class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-fire ofensiva-fire mr-1"></i><span id="display-ofensiva">0</span></p></div>
-                <div class="bg-white dark:bg-gray-800 dark:border-gray-700 p-4 rounded-xl shadow-sm border-l-4 border-indigo-400 relative group"><button onclick="resetarTempo()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Horas</p><p class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-clock text-indigo-500 dark:text-indigo-400 mr-1"></i><span id="display-tempo">0h</span></p></div>
-                <div class="bg-white dark:bg-gray-800 dark:border-gray-700 p-4 rounded-xl shadow-sm border-l-4 border-blue-400 relative group"><button onclick="resetarPomodoros()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Pomodoros</p><p class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-stopwatch text-blue-500 dark:text-blue-400 mr-1"></i><span id="display-pomodoros">0</span></p></div>
-                <div class="bg-white dark:bg-gray-800 dark:border-gray-700 p-4 rounded-xl shadow-sm border-l-4 border-green-400 relative group"><button onclick="resetarPaginas()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Páginas</p><p class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-book-open text-green-500 dark:text-green-400 mr-1"></i><span id="display-paginas">0</span></p></div>
-                <div class="bg-white dark:bg-gray-800 dark:border-gray-700 p-4 rounded-xl shadow-sm border-l-4 border-purple-400 relative group"><button onclick="resetarQuestoes()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Questões</p><p class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-check-double text-purple-500 dark:text-purple-400 mr-1"></i><span id="display-questoes-totais">0</span></p></div>
-            </div>
-
-            <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <!-- COLUNA 1 -->
-                <div class="space-y-6">
-                    <!-- GESTÃO DE TEMPO -->
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
-                        <div class="mb-4 text-left">
-                            <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Matéria Atual (Obrigatória):</label>
-                            <select id="select-materia-tempo" class="w-full p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 font-bold text-gray-700 dark:text-gray-200 mt-1 focus:ring-2 focus:ring-indigo-500 outline-none"></select>
-                        </div>
-                        <div class="flex justify-center gap-4 border-b dark:border-gray-700 mb-4 pb-2">
-                            <button id="tab-btn-pomo" onclick="mudarAbaTempo('pomo')" class="font-bold tab-active pb-1 text-sm uppercase">Pomodoro</button>
-                            <button id="tab-btn-crono" onclick="mudarAbaTempo('crono')" class="font-bold text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 pb-1 text-sm uppercase transition">Cronômetro</button>
-                            <button id="tab-btn-manual" onclick="mudarAbaTempo('manual')" class="font-bold text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 pb-1 text-sm uppercase transition">Manual</button>
-                        </div>
-                        <div id="aba-pomodoro">
-                            <div class="flex justify-center gap-4 mb-2 text-xs font-bold text-gray-500 dark:text-gray-400">
-                                <div>Foco(min): <input type="number" id="cfg-pomo-foco" value="25" class="w-12 text-center border dark:border-gray-600 rounded p-1 ml-1 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-gray-700" onchange="aplicarConfigPomo()"></div>
-                                <div>Pausa(min): <input type="number" id="cfg-pomo-pausa" value="5" class="w-12 text-center border dark:border-gray-600 rounded p-1 ml-1 text-green-600 dark:text-green-400 bg-white dark:bg-gray-700"></div>
-                            </div>
-                            <div class="text-6xl font-black text-indigo-600 dark:text-indigo-400 mb-4 font-mono tracking-wider" id="display-pomo">25:00</div>
-                            <div class="flex justify-center gap-2 mb-2">
-                                <div class="group relative w-1/3 flex justify-center"><button onclick="iniciarPomodoro(true)" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold w-full">Focar</button></div>
-                                <div class="group relative w-1/3 flex justify-center"><button onclick="pausarPomodoroTimer()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold w-full text-sm">Pausar</button></div>
-                                <div class="group relative w-1/3 flex justify-center"><button onclick="iniciarPomodoro(false)" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold w-full text-sm">Descansar</button></div>
-                            </div>
-                            <button onclick="pararPomodoro()" class="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 px-4 py-2 rounded-lg font-bold w-full text-sm transition">Parar/Resetar</button>
-                        </div>
-                        <div id="aba-cronometro" class="hidden">
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2 font-bold uppercase">Tempo Livre</p>
-                            <div class="text-5xl font-black text-gray-700 dark:text-gray-200 mb-4 font-mono tracking-wider" id="display-crono">00:00:00</div>
-                            <div class="flex justify-center gap-2">
-                                <button onclick="iniciarCrono()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-bold w-full">Iniciar</button>
-                                <button onclick="pausarCrono()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-lg font-bold w-full">Pausar</button>
-                            </div>
-                            <button onclick="pararESalvarCrono()" class="mt-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 px-4 py-2 rounded-lg font-bold w-full text-sm transition"><i class="fa-solid fa-save mr-1"></i> Encerrar e Salvar</button>
-                        </div>
-                        <div id="aba-manual" class="hidden">
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 font-bold uppercase">Adicionar Tempo Externo</p>
-                            <div class="flex justify-center items-center gap-4 mb-4">
-                                <div class="flex flex-col items-center"><input type="number" id="manual-horas" min="0" class="w-20 text-3xl text-center border-2 dark:border-gray-600 rounded-lg p-2 font-black text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-700 outline-none focus:border-indigo-500" placeholder="0"><span class="text-xs text-gray-400 font-bold mt-2">Horas</span></div><span class="text-3xl font-black text-gray-300 dark:text-gray-600 pb-5">:</span>
-                                <div class="flex flex-col items-center"><input type="number" id="manual-minutos" min="0" max="59" class="w-20 text-3xl text-center border-2 dark:border-gray-600 rounded-lg p-2 font-black text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-700 outline-none focus:border-indigo-500" placeholder="0"><span class="text-xs text-gray-400 font-bold mt-2">Minutos</span></div>
-                            </div>
-                            <button onclick="salvarTempoManual()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg font-bold w-full shadow-md"><i class="fa-solid fa-plus mr-1"></i> Registrar Manual</button>
-                        </div>
-                    </div>
-
-                    <!-- CALENDÁRIO -->
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <h2 class="text-lg font-bold text-gray-700 dark:text-white mb-4 flex justify-between items-center group relative">
-                            <span><i class="fa-regular fa-calendar-check text-green-500 mr-2"></i> Calendário</span>
-                            <div class="flex gap-2 items-center"><button onclick="resetarCalendario()" class="text-gray-300 dark:text-gray-600 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><span class="text-xs text-gray-400 font-normal" id="mes-atual-label"></span></div>
-                        </h2>
-                        <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-400 mb-1"><div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div></div>
-                        <div id="calendario-grid" class="grid grid-cols-7 gap-1 text-center text-xs"></div>
-                    </div>
-
-                    <!-- PDFs -->
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <h2 class="text-lg font-bold text-gray-700 dark:text-white mb-4"><i class="fa-solid fa-file-pdf text-red-500 mr-2"></i> Meus PDFs</h2>
-                        <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border dark:border-gray-600 mb-4">
-                            <input type="text" id="pdf-nome" placeholder="Assunto (Ex: Inquérito)" class="w-full p-2 border dark:border-gray-600 rounded mb-2 text-sm outline-none focus:ring-1 focus:ring-indigo-300 bg-white dark:bg-gray-800 dark:text-white">
-                            <div class="flex gap-2 mb-2"><input type="url" id="pdf-link" placeholder="Link (Opcional)" class="w-2/3 p-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-800 dark:text-white"><input type="number" id="pdf-total" placeholder="Pág. Totais" class="w-1/3 p-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-800 dark:text-white"></div>
-                            <button onclick="adicionarPdf()" class="w-full bg-red-500 text-white py-2 rounded font-bold hover:bg-red-600 text-sm">Salvar Material</button>
-                        </div>
-                        <div id="lista-pdfs" class="space-y-4 max-h-64 overflow-y-auto scroll-custom pr-2"></div>
-                    </div>
-                </div>
-
-                <!-- COLUNA 2 e 3 -->
-                <div class="xl:col-span-2 space-y-6">
-                    <!-- REVISÕES -->
-                    <div class="bg-orange-50 dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <div class="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-2">
-                            <h2 class="text-lg font-bold text-orange-700 dark:text-orange-400"><i class="fa-solid fa-clock-rotate-left mr-2"></i> Revisões Pendentes</h2>
-                            <div class="flex items-center gap-4">
-                                <label class="text-xs font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1 cursor-pointer"><input type="checkbox" id="check-rev-auto" onchange="toggleRevisaoAuto()" class="w-4 h-4 text-orange-500 rounded focus:ring-orange-400"> Agendar Auto.</label>
-                                <div class="flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-1 rounded border dark:border-gray-600 shadow-sm"><span class="text-xs text-gray-500 dark:text-gray-300 font-bold">Intervalos:</span><input type="text" id="config-revisoes-input" onchange="salvarConfigRevisoes()" class="text-xs p-1 border-b border-orange-300 dark:border-orange-500 outline-none w-32 text-center font-bold text-orange-600 dark:text-orange-400 bg-transparent"></div>
-                            </div>
-                        </div>
-                        <div id="lista-revisoes" class="space-y-3 max-h-48 overflow-y-auto scroll-custom pr-2"></div>
-                    </div>
-
-                    <!-- QUESTÕES -->
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4"><i class="fa-solid fa-chart-line text-blue-500 mr-2"></i> Desempenho e Gráficos</h2>
-                        <div class="flex flex-col md:flex-row gap-6 mb-6">
-                            <div class="w-full md:w-1/3 space-y-3">
-                                <select id="select-materia-questoes" class="w-full p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"></select>
-                                <div class="flex gap-2">
-                                    <input type="number" id="input-acertos" placeholder="Acertos" class="w-1/2 p-2 border border-green-300 dark:border-green-700 rounded-lg text-green-700 dark:text-green-400 bg-white dark:bg-gray-700 font-bold outline-none">
-                                    <input type="number" id="input-erros" placeholder="Erros" class="w-1/2 p-2 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 font-bold outline-none">
-                                </div>
-                                <button onclick="salvarQuestoes()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition">Registrar Questões</button>
-                            </div>
-                            <div class="w-full md:w-2/3 bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border dark:border-gray-600 max-h-48 overflow-y-auto scroll-custom">
-                                <table class="w-full text-sm text-left"><thead class="text-gray-500 dark:text-gray-300 uppercase font-bold text-xs border-b dark:border-gray-600"><tr><th class="pb-2">Matéria</th><th class="pb-2 text-center">Total</th><th class="pb-2 text-center text-green-600 dark:text-green-400">✓</th><th class="pb-2 text-center text-red-500 dark:text-red-400">✗</th><th class="pb-2 text-right">%</th></tr></thead><tbody id="tabela-questoes"></tbody></table>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t dark:border-gray-700 pt-4 mb-6"><div class="h-48 flex justify-center"><canvas id="graficoGeral"></canvas></div><div class="h-48 flex justify-center"><canvas id="graficoMaterias"></canvas></div></div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t dark:border-gray-700 pt-4"><div><h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-2">Evolução (Últimos 7 dias)</h3><div class="h-56 w-full"><canvas id="graficoEvolucao"></canvas></div></div><div><h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-2">Tempo por Matéria (Horas)</h3><div class="h-56 w-full"><canvas id="graficoTempoMateria"></canvas></div></div></div>
-                    </div>
-
-                    <!-- EDITAL -->
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-4">
-                        <h2 class="text-xl font-bold text-gray-800 dark:text-white"><i class="fa-solid fa-list-check text-indigo-500 mr-2"></i> Meu Edital</h2>
-                        <div class="bg-indigo-50 dark:bg-gray-700 p-4 rounded-xl border border-indigo-100 dark:border-gray-600">
-                            <p class="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-2">Adicionar Matéria Rápida</p>
-                            <div class="flex flex-col md:flex-row gap-2 mb-2">
-                                <input type="text" id="nova-materia" placeholder="Nome..." class="w-full md:w-1/3 p-2 border dark:border-gray-600 rounded outline-none focus:ring-1 focus:ring-indigo-400 bg-white dark:bg-gray-800 dark:text-white">
-                                <input type="text" id="texto-edital" placeholder="Tópico 1, Tópico 2..." class="w-full md:w-2/3 p-2 border dark:border-gray-600 rounded text-sm outline-none bg-white dark:bg-gray-800 dark:text-white">
-                                <button onclick="adicionarMateriaEmMassa()" class="bg-indigo-600 text-white px-4 rounded font-bold hover:bg-indigo-700">Add</button>
-                            </div>
-                        </div>
-                        <div id="lista-edital" class="space-y-4"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ============================================== -->
-        <!-- VIEW 2: MEUS MATERIAIS (Flashcards e Resumos) -->
-        <!-- ============================================== -->
-        <div id="view-materiais" class="hidden">
             
-            <div class="flex gap-4 mb-6 border-b dark:border-gray-700 pb-2">
-                <button onclick="mudarAbaMaterial('flashcards')" id="tab-mat-flashcards" class="font-bold text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 pb-1">Flashcards</button>
-                <button onclick="mudarAbaMaterial('resumos')" id="tab-mat-resumos" class="font-bold text-gray-500 dark:text-gray-400 hover:text-indigo-600 pb-1">Resumos Estruturados</button>
-            </div>
+            <nav class="flex-1 overflow-y-auto py-4 space-y-1 px-2">
+                <button onclick="mudarAbaNav('dashboard')" id="menu-dashboard" class="w-full flex items-center px-3 py-3 rounded-lg text-left transition font-bold bg-indigo-100 text-indigo-700 border-r-4 border-indigo-600 dark:bg-gray-700 dark:text-indigo-400">
+                    <i class="fa-solid fa-chart-pie text-lg w-6 text-center menu-icon"></i> <span class="menu-texto ml-2">Dashboard</span>
+                </button>
+                <button onclick="mudarAbaNav('calendario')" id="menu-calendario" class="w-full flex items-center px-3 py-3 rounded-lg text-left text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-bold">
+                    <i class="fa-solid fa-calendar-days text-lg w-6 text-center menu-icon"></i> <span class="menu-texto ml-2">Calendário & Histórico</span>
+                </button>
+                <button onclick="mudarAbaNav('pdfs')" id="menu-pdfs" class="w-full flex items-center px-3 py-3 rounded-lg text-left text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-bold">
+                    <i class="fa-solid fa-file-pdf text-lg w-6 text-center menu-icon"></i> <span class="menu-texto ml-2">Meus PDFs</span>
+                </button>
+                <button onclick="mudarAbaNav('revisoes')" id="menu-revisoes" class="w-full flex items-center px-3 py-3 rounded-lg text-left text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-bold">
+                    <i class="fa-solid fa-clock-rotate-left text-lg w-6 text-center menu-icon"></i> <span class="menu-texto ml-2">Revisões</span>
+                </button>
+                <button onclick="mudarAbaNav('desempenho')" id="menu-desempenho" class="w-full flex items-center px-3 py-3 rounded-lg text-left text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-bold">
+                    <i class="fa-solid fa-chart-line text-lg w-6 text-center menu-icon"></i> <span class="menu-texto ml-2">Desempenho</span>
+                </button>
+                <button onclick="mudarAbaNav('edital')" id="menu-edital" class="w-full flex items-center px-3 py-3 rounded-lg text-left text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-bold">
+                    <i class="fa-solid fa-list-check text-lg w-6 text-center menu-icon"></i> <span class="menu-texto ml-2">Meu Edital</span>
+                </button>
+                <button onclick="mudarAbaNav('resumos')" id="menu-resumos" class="w-full flex items-center px-3 py-3 rounded-lg text-left text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-bold">
+                    <i class="fa-solid fa-book-bookmark text-lg w-6 text-center menu-icon"></i> <span class="menu-texto ml-2">Resumos</span>
+                </button>
+                <button onclick="mudarAbaNav('flashcards')" id="menu-flashcards" class="w-full flex items-center px-3 py-3 rounded-lg text-left text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition font-bold">
+                    <i class="fa-solid fa-clone text-lg w-6 text-center menu-icon"></i> <span class="menu-texto ml-2">Flashcards</span>
+                </button>
+            </nav>
+        </aside>
 
-            <!-- FLASHCARDS -->
-            <div id="sec-flashcards" class="block">
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-6">
-                    <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4"><i class="fa-solid fa-clone text-indigo-500 mr-2"></i> Criar Novo Flashcard</h2>
-                    <div class="flex flex-col gap-4">
-                        <select id="select-materia-flashcard" class="w-full md:w-1/3 p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 font-bold text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none"></select>
-                        <div class="flex flex-col md:flex-row gap-4">
-                            <div class="flex-1">
-                                <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-1">Frente (Pergunta)</label>
-                                <textarea id="flashcard-frente" rows="3" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: O que é o Princípio da Legalidade?"></textarea>
-                            </div>
-                            <div class="flex-1">
-                                <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-1">Verso (Resposta)</label>
-                                <textarea id="flashcard-verso" rows="3" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: Ninguém será obrigado a fazer ou deixar de fazer..."></textarea>
-                            </div>
-                        </div>
-                        <button onclick="salvarFlashcard()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg w-full md:w-auto self-end shadow-md">Salvar Cartão</button>
-                    </div>
+        <!-- ÁREA DE CONTEÚDO (MAIN) -->
+        <div class="flex-1 flex flex-col min-w-0">
+            
+            <header class="h-16 flex items-center justify-between px-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur border-b dark:border-gray-700 z-10 shadow-sm shrink-0">
+                <div class="flex items-center gap-4">
+                    <!-- BOTÃO HAMBÚRGUER -->
+                    <button onclick="toggleSidebar()" class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition" title="Recolher Menu">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                    <div class="font-bold text-gray-600 dark:text-gray-300 hidden sm:block" id="header-title">Dashboard Geral</div>
                 </div>
                 
-                <!-- CABEÇALHO COM TOGGLE DE LAYOUT -->
-                <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-                    <h3 class="font-bold text-gray-700 dark:text-gray-300">Meus Cartões</h3>
-                    <div class="flex items-center gap-4">
-                        <div class="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
-                            <button onclick="mudarLayout('flashcards', 'grid')" id="btn-layout-fc-grid" class="px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" title="Visualização em Grade"><i class="fa-solid fa-border-all"></i></button>
-                            <button onclick="mudarLayout('flashcards', 'lista')" id="btn-layout-fc-lista" class="px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition" title="Visualização em Lista"><i class="fa-solid fa-list"></i></button>
-                        </div>
-                        <select id="filtro-flashcard" onchange="renderizarFlashcards()" class="p-2 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-white text-sm outline-none">
-                            <option value="todas">Todas as Matérias</option>
-                        </select>
-                    </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleDarkMode()" class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-yellow-400 w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition" title="Alternar Modo Noturno"><i class="fa-solid fa-moon"></i></button>
+                    <div class="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm flex items-center gap-2"><i class="fa-solid fa-cloud-check text-green-500"></i> <span class="hidden sm:block">Sincronizado</span></div>
+                    <button onclick="sairConta()" class="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 w-10 h-10 rounded-full flex items-center justify-center font-bold transition" title="Sair da Conta"><i class="fa-solid fa-right-from-bracket"></i></button>
                 </div>
-                <!-- ONDE OS CARTÕES APARECEM -->
-                <div id="grid-flashcards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
-            </div>
+            </header>
 
-            <!-- RESUMOS -->
-            <div id="sec-resumos" class="hidden">
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-6">
-                    <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4"><i class="fa-solid fa-book-bookmark text-green-500 mr-2"></i> Novo Resumo Estruturado</h2>
-                    <div class="flex flex-col gap-4">
-                        <div class="flex flex-col md:flex-row gap-4">
-                            <select id="select-materia-resumo" class="w-full md:w-1/3 p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 font-bold text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-green-500 outline-none"></select>
-                            <input type="text" id="resumo-titulo" placeholder="Título (Ex: Prazos Processuais)" class="flex-1 p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500">
-                        </div>
-                        <textarea id="resumo-conteudo" rows="8" class="w-full p-4 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500" placeholder="Escreva seu resumo, conceitos e mapas textuais aqui..."></textarea>
-                        <button onclick="salvarResumo()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg w-full md:w-auto self-end shadow-md">Salvar Caderno</button>
-                    </div>
-                </div>
+            <main class="flex-1 overflow-y-auto p-4 md:p-8 scroll-custom transform-gpu bg-gray-50 dark:bg-gray-900 relative">
                 
-                <!-- CABEÇALHO COM TOGGLE DE LAYOUT -->
-                <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-                    <h3 class="font-bold text-gray-700 dark:text-gray-300">Meus Cadernos</h3>
-                    <div class="flex items-center gap-4">
-                        <div class="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
-                            <button onclick="mudarLayout('resumos', 'grid')" id="btn-layout-res-grid" class="px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" title="Visualização em Grade"><i class="fa-solid fa-border-all"></i></button>
-                            <button onclick="mudarLayout('resumos', 'lista')" id="btn-layout-res-lista" class="px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition" title="Visualização em Lista"><i class="fa-solid fa-list"></i></button>
+                <!-- ================= 1. ABA DASHBOARD ================= -->
+                <section id="view-dashboard" class="block space-y-6">
+                    <div class="bg-gradient-to-r from-indigo-700 to-indigo-900 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row justify-between items-center gap-4 border dark:border-gray-700">
+                        <div class="w-full md:w-1/2">
+                            <p class="text-indigo-200 dark:text-gray-400 text-sm mb-1 uppercase tracking-wider font-bold">🎯 Foco Atual</p>
+                            <div class="flex gap-2 items-center">
+                                <select id="select-concurso" onchange="mudarConcursoAtivo()" class="bg-transparent border-b-2 border-indigo-400 dark:border-gray-500 text-2xl font-bold text-white w-full focus:outline-none focus:border-white appearance-none cursor-pointer text-ellipsis overflow-hidden whitespace-nowrap"></select>
+                                <button onclick="mostrarFormConcurso()" class="bg-indigo-500 dark:bg-gray-700 hover:bg-indigo-400 dark:hover:bg-gray-600 text-white w-10 h-10 rounded-lg transition shrink-0"><i class="fa-solid fa-plus"></i></button>
+                                <button onclick="deletarConcursoAtivo()" class="bg-red-500 hover:bg-red-400 text-white w-10 h-10 rounded-lg transition shrink-0"><i class="fa-solid fa-trash"></i></button>
+                            </div>
                         </div>
-                        <select id="filtro-resumo" onchange="renderizarResumos()" class="p-2 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-white text-sm outline-none">
-                            <option value="todas">Todas as Matérias</option>
-                        </select>
+                        <div class="flex items-center gap-4 w-full md:w-auto">
+                            <div class="flex flex-col text-right"><label class="text-indigo-200 dark:text-gray-400 text-sm font-bold">Data da Prova:</label><span id="display-concurso-data" class="text-xl font-bold">--/--/----</span></div>
+                            <div class="bg-white dark:bg-gray-800 text-indigo-900 dark:text-white px-6 py-3 rounded-xl shadow text-center min-w-[100px]"><p class="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Faltam</p><p class="text-3xl font-black" id="dias-restantes">--</p></div>
+                        </div>
                     </div>
-                </div>
-                <!-- ONDE OS RESUMOS APARECEM -->
-                <div id="lista-meus-resumos" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
-            </div>
+                    
+                    <div id="form-novo-concurso" class="hidden bg-white dark:bg-gray-800 p-4 rounded-xl border border-indigo-200 dark:border-gray-700 flex-col md:flex-row gap-2 shadow-sm">
+                        <input type="text" id="novo-concurso-nome" placeholder="Nome do Concurso" class="p-2 border dark:border-gray-600 rounded-lg flex-1 bg-white dark:bg-gray-700 dark:text-white">
+                        <input type="date" id="novo-concurso-data" class="p-2 border dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700">
+                        <button onclick="adicionarConcurso()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700">Salvar Prova</button>
+                        <button onclick="esconderFormConcurso()" class="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-500">Cancelar</button>
+                    </div>
 
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div class="bg-white dark:bg-gray-800 dark:border-gray-700 p-4 rounded-xl shadow-sm border-l-4 border-orange-400"><p class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Ofensiva</p><p class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-fire ofensiva-fire mr-1"></i><span id="display-ofensiva">0</span></p></div>
+                        <div class="bg-white dark:bg-gray-800 dark:border-gray-700 p-4 rounded-xl shadow-sm border-l-4 border-indigo-400 relative group"><button onclick="resetarTempo()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Horas</p><p class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-clock text-indigo-500 dark:text-indigo-400 mr-1"></i><span id="display-tempo">0h</span></p></div>
+                        <div class="bg-white dark:bg-gray-800 dark:border-gray-700 p-4 rounded-xl shadow-sm border-l-4 border-blue-400 relative group"><button onclick="resetarPomodoros()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Pomodoros</p><p class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-stopwatch text-blue-500 dark:text-blue-400 mr-1"></i><span id="display-pomodoros">0</span></p></div>
+                        <div class="bg-white dark:bg-gray-800 dark:border-gray-700 p-4 rounded-xl shadow-sm border-l-4 border-green-400 relative group"><button onclick="resetarPaginas()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Páginas</p><p class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-book-open text-green-500 dark:text-green-400 mr-1"></i><span id="display-paginas">0</span></p></div>
+                        <div class="bg-white dark:bg-gray-800 dark:border-gray-700 p-4 rounded-xl shadow-sm border-l-4 border-purple-400 relative group"><button onclick="resetarQuestoes()" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block transition"><i class="fa-solid fa-trash"></i></button><p class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Questões</p><p class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-check-double text-purple-500 dark:text-purple-400 mr-1"></i><span id="display-questoes-totais">0</span></p></div>
+                    </div>
+
+                    <!-- GESTÃO DE TEMPO (ABAS CORRIGIDAS) -->
+                    <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-2xl mx-auto mt-6">
+                        <div class="mb-6 text-left">
+                            <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">O que você vai estudar agora?</label>
+                            <select id="select-materia-tempo" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 font-bold text-gray-700 dark:text-gray-200 mt-2 focus:ring-2 focus:ring-indigo-500 outline-none"></select>
+                        </div>
+                        <div class="flex justify-center gap-6 border-b dark:border-gray-700 mb-6 pb-2">
+                            <button id="tab-btn-pomodoro" onclick="mudarAbaTempo('pomodoro')" class="font-bold tab-active text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 pb-2 uppercase tracking-wide transition">Pomodoro</button>
+                            <button id="tab-btn-cronometro" onclick="mudarAbaTempo('cronometro')" class="font-bold text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 pb-2 uppercase tracking-wide transition">Cronômetro</button>
+                            <button id="tab-btn-manual" onclick="mudarAbaTempo('manual')" class="font-bold text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 pb-2 uppercase tracking-wide transition">Manual</button>
+                        </div>
+                        
+                        <div id="aba-pomodoro" class="text-center">
+                            <div class="flex justify-center gap-4 mb-4 text-sm font-bold text-gray-500 dark:text-gray-400">
+                                <div>Foco(min): <input type="number" id="cfg-pomo-foco" value="25" class="w-16 text-center border dark:border-gray-600 rounded-lg p-1 ml-1 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-gray-700" onchange="aplicarConfigPomo()"></div>
+                                <div>Pausa(min): <input type="number" id="cfg-pomo-pausa" value="5" class="w-16 text-center border dark:border-gray-600 rounded-lg p-1 ml-1 text-green-600 dark:text-green-400 bg-white dark:bg-gray-700"></div>
+                            </div>
+                            <div class="text-[5rem] font-black text-indigo-600 dark:text-indigo-400 mb-6 font-mono tracking-wider leading-none" id="display-pomo">25:00</div>
+                            <div class="flex justify-center gap-3 mb-4">
+                                <button onclick="iniciarPomodoro(true)" class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold flex-1 shadow-md transition">Focar</button>
+                                <button onclick="pausarPomodoroTimer()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-xl font-bold flex-1 shadow-md transition">Pausar</button>
+                                <button onclick="iniciarPomodoro(false)" class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold flex-1 shadow-md transition">Descansar</button>
+                            </div>
+                            <button onclick="pararPomodoro()" class="text-red-500 hover:text-red-600 font-bold text-sm underline transition">Parar e Resetar</button>
+                        </div>
+                        <div id="aba-cronometro" class="hidden text-center">
+                            <div class="text-[5rem] font-black text-gray-700 dark:text-gray-200 mb-6 font-mono tracking-wider leading-none" id="display-crono">00:00:00</div>
+                            <div class="flex justify-center gap-3 mb-4">
+                                <button onclick="iniciarCrono()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex-1 shadow-md transition">Iniciar</button>
+                                <button onclick="pausarCrono()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-xl font-bold flex-1 shadow-md transition">Pausar</button>
+                            </div>
+                            <button onclick="pararESalvarCrono()" class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 px-6 py-3 rounded-xl font-bold w-full shadow-sm transition"><i class="fa-solid fa-save mr-2"></i> Encerrar e Salvar no Histórico</button>
+                        </div>
+                        <div id="aba-manual" class="hidden text-center">
+                            <div class="flex justify-center items-center gap-6 mb-8 mt-4">
+                                <div class="flex flex-col items-center"><input type="number" id="manual-horas" min="0" class="w-24 text-4xl text-center border-2 dark:border-gray-600 rounded-xl p-3 font-black text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-700 outline-none focus:border-indigo-500" placeholder="0"><span class="text-sm text-gray-400 font-bold mt-2 uppercase tracking-wide">Horas</span></div><span class="text-4xl font-black text-gray-300 dark:text-gray-600 pb-6">:</span>
+                                <div class="flex flex-col items-center"><input type="number" id="manual-minutos" min="0" max="59" class="w-24 text-4xl text-center border-2 dark:border-gray-600 rounded-xl p-3 font-black text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-700 outline-none focus:border-indigo-500" placeholder="0"><span class="text-sm text-gray-400 font-bold mt-2 uppercase tracking-wide">Minutos</span></div>
+                            </div>
+                            <button onclick="salvarTempoManual()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-4 rounded-xl font-bold w-full shadow-md text-lg"><i class="fa-solid fa-plus mr-2"></i> Lançar Horas no Histórico</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= 2. ABA CALENDÁRIO & HISTÓRICO ================= -->
+                <section id="view-calendario" class="hidden space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 h-max">
+                            <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6 flex justify-between items-center group">
+                                <span><i class="fa-regular fa-calendar-check text-green-500 mr-2"></i> Dias de Estudo</span>
+                                <div class="flex gap-4 items-center">
+                                    <button onclick="resetarCalendario()" class="text-gray-300 dark:text-gray-600 hover:text-red-500 hidden group-hover:block transition" title="Limpar Cores"><i class="fa-solid fa-trash"></i></button>
+                                    <span class="text-sm text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider bg-indigo-50 dark:bg-gray-700 px-3 py-1 rounded-lg" id="mes-atual-label"></span>
+                                </div>
+                            </h2>
+                            <div class="grid grid-cols-7 gap-2 text-center text-sm font-bold text-gray-400 mb-2"><div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div></div>
+                            <div id="calendario-grid" class="grid grid-cols-7 gap-2 text-center text-sm font-semibold"></div>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-[500px]">
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-xl font-bold text-gray-800 dark:text-white"><i class="fa-solid fa-clock-rotate-left text-indigo-500 mr-2"></i> Histórico Detalhado</h2>
+                                <button onclick="limparHistoricoEstudos()" class="text-xs text-red-500 hover:underline font-bold">Limpar Histórico</button>
+                            </div>
+                            <div id="lista-historico-estudos" class="flex-1 overflow-y-auto scroll-custom space-y-3 pr-2"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= 3. ABA MEUS PDFs ================= -->
+                <section id="view-pdfs" class="hidden flex flex-col h-[calc(100vh-8rem)]">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-6 shrink-0">
+                        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4"><i class="fa-solid fa-file-pdf text-red-500 mr-2"></i> Gerenciador de PDFs</h2>
+                        <div class="flex flex-col md:flex-row gap-4 mb-4">
+                            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-xl border dark:border-gray-600 flex-1">
+                                <p class="text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">Cadastrar PDF Externo</p>
+                                <div class="flex gap-2 mb-2"><input type="text" id="pdf-nome" placeholder="Assunto (Ex: Inquérito)" class="flex-1 p-2 border dark:border-gray-600 rounded bg-white dark:bg-gray-800 dark:text-white outline-none"><input type="number" id="pdf-total" placeholder="Páginas" class="w-24 p-2 border dark:border-gray-600 rounded bg-white dark:bg-gray-800 dark:text-white outline-none"></div>
+                                <input type="url" id="pdf-link" placeholder="Link de Compartilhamento" class="w-full p-2 border dark:border-gray-600 rounded mb-2 text-sm bg-white dark:bg-gray-800 dark:text-white outline-none">
+                                <button onclick="adicionarPdf()" class="w-full bg-red-500 text-white py-2 rounded font-bold hover:bg-red-600 transition shadow">Salvar na Lista</button>
+                            </div>
+                            <div class="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800 flex-1 flex flex-col justify-center items-center text-center">
+                                <i class="fa-solid fa-book-open-reader text-3xl text-indigo-500 mb-2"></i>
+                                <p class="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-1">Leitor Interno Instantâneo</p>
+                                <p class="text-xs text-indigo-600 dark:text-indigo-400 mb-4 px-4">Abra um PDF do seu computador direto no app.</p>
+                                <input type="file" id="pdf-file-input" accept="application/pdf" class="hidden" onchange="abrirPdfLocal(event)">
+                                <button onclick="document.getElementById('pdf-file-input').click()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 transition shadow-md w-full max-w-[200px]">Selecionar Arquivo</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
+                            <h3 class="font-bold text-gray-700 dark:text-gray-300 mb-4">Meus PDFs Cadastrados</h3>
+                            <div id="lista-pdfs" class="space-y-3 flex-1 overflow-y-auto scroll-custom pr-2"></div>
+                        </div>
+                        <div class="lg:col-span-2 bg-gray-200 dark:bg-gray-800 rounded-2xl border dark:border-gray-700 flex flex-col overflow-hidden relative">
+                            <div id="leitor-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 pointer-events-none"><i class="fa-solid fa-file-pdf text-6xl mb-4 opacity-50"></i><p class="font-bold">O PDF aparecerá aqui</p></div>
+                            <iframe id="pdf-viewer" class="w-full h-full border-0 relative z-10 hidden" src=""></iframe>
+                            <button onclick="fecharLeitorPdf()" id="btn-fechar-pdf" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg hidden z-20 hover:bg-red-600"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= 4. ABA REVISÕES ================= -->
+                <section id="view-revisoes" class="hidden">
+                    <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-4xl mx-auto">
+                        <div class="flex flex-col md:flex-row justify-between items-center border-b dark:border-gray-700 pb-6 mb-6 gap-4">
+                            <div>
+                                <h2 class="text-2xl font-black text-gray-800 dark:text-white"><i class="fa-solid fa-clock-rotate-left text-orange-500 mr-2"></i> Central de Revisões</h2>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Gerencie a Curva de Esquecimento baseada em repetição espaçada.</p>
+                            </div>
+                            <div class="flex flex-col items-end gap-3 bg-gray-50 dark:bg-gray-700 p-4 rounded-xl border dark:border-gray-600">
+                                <label class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="check-rev-auto" onchange="toggleRevisaoAuto()" class="w-5 h-5 text-orange-500 rounded border-gray-300"> Agendar Automaticamente
+                                </label>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Dias de Intervalo:</span>
+                                    <input type="text" id="config-revisoes-input" onchange="salvarConfigRevisoes()" class="text-sm p-1.5 border-b-2 border-orange-400 outline-none w-32 text-center font-bold text-orange-600 dark:text-orange-400 bg-transparent">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-4 mb-4 font-bold text-sm">
+                            <span class="text-orange-500"><i class="fa-solid fa-circle text-[10px]"></i> Pendentes</span>
+                            <span class="text-red-500"><i class="fa-solid fa-circle text-[10px]"></i> Atrasadas</span>
+                            <span class="text-green-500"><i class="fa-solid fa-circle text-[10px]"></i> Concluídas</span>
+                        </div>
+                        <div id="lista-revisoes-completa" class="space-y-3 max-h-[600px] overflow-y-auto scroll-custom pr-2"></div>
+                    </div>
+                </section>
+
+                <!-- ================= 5. ABA DESEMPENHO ================= -->
+                <section id="view-desempenho" class="hidden space-y-6">
+                    <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                        <h2 class="text-2xl font-black text-gray-800 dark:text-white mb-6"><i class="fa-solid fa-chart-line text-blue-500 mr-2"></i> Desempenho e Estatísticas</h2>
+                        <div class="bg-blue-50 dark:bg-blue-900/10 p-6 rounded-xl border border-blue-100 dark:border-blue-900/50 mb-8 max-w-2xl mx-auto flex flex-col md:flex-row gap-4 items-end">
+                            <div class="w-full md:flex-1"><label class="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase mb-1 block">Matéria</label><select id="select-materia-questoes" class="w-full p-3 border border-blue-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 font-bold focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"></select></div>
+                            <div class="w-full md:w-32"><label class="text-xs font-bold text-green-700 dark:text-green-400 uppercase mb-1 block">Acertos</label><input type="number" id="input-acertos" placeholder="0" class="w-full p-3 border border-green-300 dark:border-green-700 rounded-lg text-green-700 dark:text-green-400 bg-white dark:bg-gray-700 font-black text-center outline-none focus:ring-2 focus:ring-green-500"></div>
+                            <div class="w-full md:w-32"><label class="text-xs font-bold text-red-700 dark:text-red-400 uppercase mb-1 block">Erros</label><input type="number" id="input-erros" placeholder="0" class="w-full p-3 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 font-black text-center outline-none focus:ring-2 focus:ring-red-500"></div>
+                            <button onclick="salvarQuestoes()" class="w-full md:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md whitespace-nowrap">Registrar</button>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border dark:border-gray-600"><div class="h-64 flex justify-center"><canvas id="graficoGeral"></canvas></div></div>
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border dark:border-gray-600"><div class="h-64 flex justify-center"><canvas id="graficoMaterias"></canvas></div></div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border dark:border-gray-600"><h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-4 text-center uppercase tracking-wide">Evolução de Estudos</h3><div class="h-64 w-full"><canvas id="graficoEvolucao"></canvas></div></div>
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border dark:border-gray-600"><h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-4 text-center uppercase tracking-wide">Tempo por Matéria</h3><div class="h-64 w-full"><canvas id="graficoTempoMateria"></canvas></div></div>
+                        </div>
+                        <div class="mt-8 border-t dark:border-gray-700 pt-6 max-h-64 overflow-y-auto scroll-custom">
+                            <table class="w-full text-sm text-left"><thead class="text-gray-500 dark:text-gray-400 uppercase font-black text-xs border-b-2 dark:border-gray-700"><tr><th class="pb-3 px-2">Matéria Analisada</th><th class="pb-3 text-center">Feitas</th><th class="pb-3 text-center text-green-500">Corretas</th><th class="pb-3 text-center text-red-500">Erradas</th><th class="pb-3 text-right px-2">Taxa %</th></tr></thead><tbody id="tabela-questoes"></tbody></table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= 6. ABA EDITAL ================= -->
+                <section id="view-edital" class="hidden">
+                    <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-5xl mx-auto">
+                        <h2 class="text-2xl font-black text-gray-800 dark:text-white mb-6"><i class="fa-solid fa-list-check text-indigo-500 mr-2"></i> Estrutura do Edital</h2>
+                        <div class="bg-indigo-50 dark:bg-gray-700 p-6 rounded-2xl border border-indigo-100 dark:border-gray-600 mb-8 shadow-inner">
+                            <p class="text-sm font-black text-indigo-800 dark:text-indigo-300 mb-3 uppercase tracking-wide">Cadastrar Matéria e Tópicos</p>
+                            <div class="flex flex-col md:flex-row gap-3">
+                                <input type="text" id="nova-materia" placeholder="Matéria (Ex: Dir. Penal)" class="w-full md:w-1/3 p-3 border dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-800 dark:text-white font-bold">
+                                <input type="text" id="texto-edital" placeholder="Tópicos separados por vírgula..." class="w-full md:w-2/3 p-3 border dark:border-gray-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-800 dark:text-white">
+                                <button onclick="adicionarMateriaEmMassa()" class="bg-indigo-600 text-white px-8 py-3 rounded-lg font-black hover:bg-indigo-700 transition shadow-md">Cadastrar</button>
+                            </div>
+                        </div>
+                        <div id="lista-edital-completa" class="space-y-6"></div>
+                    </div>
+                </section>
+
+                <!-- ================= 7. ABA RESUMOS ================= -->
+                <section id="view-resumos" class="hidden">
+                    <div class="max-w-6xl mx-auto">
+                        <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-6">
+                            <h2 class="text-2xl font-black text-gray-800 dark:text-white mb-6"><i class="fa-solid fa-book-bookmark text-green-500 mr-2"></i> Cadernos e Resumos</h2>
+                            <div class="flex flex-col gap-4">
+                                <div class="flex flex-col md:flex-row gap-4">
+                                    <select id="select-materia-resumo" class="w-full md:w-1/3 p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 font-bold text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-green-500 outline-none"></select>
+                                    <input type="text" id="resumo-titulo" placeholder="Título do Resumo" class="flex-1 p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500 font-bold">
+                                </div>
+                                <textarea id="resumo-conteudo" rows="10" class="w-full p-5 border dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500 leading-relaxed" placeholder="Digite suas anotações aqui..."></textarea>
+                                <button onclick="salvarResumo()" class="bg-green-600 hover:bg-green-700 text-white font-black py-3 px-8 rounded-lg w-full md:w-auto self-end shadow-md transition">Salvar no Caderno</button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border dark:border-gray-700">
+                            <h3 class="font-black text-lg text-gray-700 dark:text-gray-200">Meus Cadernos Salvos</h3>
+                            <div class="flex items-center gap-4">
+                                <div class="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1"><button onclick="mudarLayout('resumos', 'grid')" id="btn-layout-res-grid" class="px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-green-600 dark:text-green-400 transition" title="Grade"><i class="fa-solid fa-border-all"></i></button><button onclick="mudarLayout('resumos', 'lista')" id="btn-layout-res-lista" class="px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-green-600 transition" title="Lista"><i class="fa-solid fa-list"></i></button></div>
+                                <select id="filtro-resumo" onchange="renderizarResumos()" class="p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white text-sm outline-none font-bold"><option value="todas">Todas as Matérias</option></select>
+                            </div>
+                        </div>
+                        <div id="lista-meus-resumos" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+                    </div>
+                </section>
+
+                <!-- ================= 8. ABA FLASHCARDS ================= -->
+                <section id="view-flashcards" class="hidden">
+                    <div class="max-w-6xl mx-auto">
+                        <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-6">
+                            <h2 class="text-2xl font-black text-gray-800 dark:text-white mb-6"><i class="fa-solid fa-clone text-indigo-500 mr-2"></i> Criador de Flashcards</h2>
+                            <div class="flex flex-col gap-4">
+                                <select id="select-materia-flashcard" class="w-full md:w-1/3 p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 font-bold text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none"></select>
+                                <div class="flex flex-col md:flex-row gap-6">
+                                    <div class="flex-1 bg-gray-50 dark:bg-gray-700 p-4 rounded-xl border dark:border-gray-600">
+                                        <label class="block text-sm font-black text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Frente (Pergunta)</label>
+                                        <textarea id="flashcard-frente" rows="4" class="w-full p-3 border-0 bg-transparent dark:text-white outline-none resize-none font-medium text-lg" placeholder="O que é o Princípio da Legalidade?"></textarea>
+                                    </div>
+                                    <div class="flex-1 bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                                        <label class="block text-sm font-black text-indigo-400 dark:text-indigo-400 mb-2 uppercase tracking-wide">Verso (Resposta Oculta)</label>
+                                        <textarea id="flashcard-verso" rows="4" class="w-full p-3 border-0 bg-transparent dark:text-white outline-none resize-none font-medium text-lg" placeholder="Resposta detalhada..."></textarea>
+                                    </div>
+                                </div>
+                                <button onclick="salvarFlashcard()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-8 rounded-lg w-full md:w-auto self-end shadow-md transition mt-2">Adicionar ao Baralho</button>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border dark:border-gray-700">
+                            <h3 class="font-black text-lg text-gray-700 dark:text-gray-200">Meus Cartões de Estudo</h3>
+                            <div class="flex items-center gap-4">
+                                <div class="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1"><button onclick="mudarLayout('flashcards', 'grid')" id="btn-layout-fc-grid" class="px-3 py-1 rounded bg-white dark:bg-gray-600 shadow-sm text-indigo-600 dark:text-indigo-400 transition" title="Grade"><i class="fa-solid fa-border-all"></i></button><button onclick="mudarLayout('flashcards', 'lista')" id="btn-layout-fc-lista" class="px-3 py-1 rounded text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition" title="Lista"><i class="fa-solid fa-list"></i></button></div>
+                                <select id="filtro-flashcard" onchange="renderizarFlashcards()" class="p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white text-sm outline-none font-bold"><option value="todas">Todas as Matérias</option></select>
+                            </div>
+                        </div>
+                        <div id="grid-flashcards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+                    </div>
+                </section>
+
+            </main>
         </div>
+    </div>
 
-    </main>
-
-    <script type="module" src="script.js"></script>
+    <!-- CARREGADOR DE CACHE FORÇADO V5.0 -->
+    <script type="module" src="app.js?v=5.0"></script>
 </body>
 </html>
