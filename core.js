@@ -350,9 +350,10 @@ window.atualizarGraficos = function() {
         const textColor = window.dadosEstudo.darkMode ? '#9ca3af' : '#6b7280'; Chart.defaults.color = textColor;
         const qG = window.dadosEstudo.questoesGerais || {acertos: 0, erros: 0};
         let totQ = qG.acertos + qG.erros; 
+        
         if(chartGeral) chartGeral.destroy(); 
         const ctxG = document.getElementById('graficoGeral');
-        if(ctxG) { chartGeral = new Chart(ctxG.getContext('2d'), { type: 'doughnut', data: { labels: totQ>0?['Acertos', 'Erros']:['Sem Dados'], datasets: [{ data: totQ>0?[qG.acertos, qG.erros]:[1], backgroundColor: totQ>0?['#10b981', '#ef4444']:['#e5e7eb'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, title: { display: true, text: 'Visão Geral', color: textColor, font: { size: 12 } } } } }); }
+        if(ctxG) { chartGeral = new Chart(ctxG.getContext('2d'), { type: 'doughnut', data: { labels: totQ>0?['Acertos', 'Erros']:['Sem Dados'], datasets: [{ data: totQ>0?[qG.acertos, qG.erros]:[1], backgroundColor: totQ>0?['#10b981', '#ef4444']:['#e5e7eb'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, title: { display: true, text: 'Visão Geral (Feitas)', color: textColor, font: { size: 14, weight: 'bold' } }, tooltip: { enabled: totQ>0, callbacks: { label: function(context) { return ' ' + context.label + ': ' + context.parsed + ' questões'; } } } } } }); }
 
         const labelsM = [], dadosM = [], coresM = [], labelsT = [], dadosT = [];
         (window.dadosEstudo.materias || []).forEach(m => { 
@@ -360,23 +361,83 @@ window.atualizarGraficos = function() {
             const nomeGrafico = (m.nome && m.nome.length > 15) ? m.nome.substring(0, 15) + '...' : (m.nome || 'Materia');
             const questoes = m.questoes || { acertos: 0, erros: 0 };
             if(questoes.acertos > 0 || questoes.erros > 0) { labelsM.push(nomeGrafico); const pct = Math.round((questoes.acertos / (questoes.acertos + questoes.erros)) * 100); dadosM.push(pct); coresM.push(pct >= 80 ? '#10b981' : (pct >= 60 ? '#f59e0b' : '#ef4444')); } 
-            if(m.tempo && m.tempo > 0) { labelsT.push(nomeGrafico); dadosT.push((m.tempo / 60).toFixed(1)); } 
+            if(m.tempo && m.tempo > 0) { 
+                labelsT.push(nomeGrafico); 
+                dadosT.push(m.tempo); // MUDANÇA: Agora enviamos os MINUTOS brutos para o gráfico não perder precisão
+            } 
         });
 
         if(chartMaterias) chartMaterias.destroy(); 
         const ctxM = document.getElementById('graficoMaterias');
-        if(ctxM) { chartMaterias = new Chart(ctxM.getContext('2d'), { type: 'bar', data: { labels: labelsM.length > 0 ? labelsM : ['-'], datasets: [{ data: dadosM.length > 0 ? dadosM : [0], backgroundColor: coresM.length > 0 ? coresM : ['#374151'], borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } }, plugins: { legend: { display: false }, title: { display: true, text: 'Aproveitamento (%)', color: textColor, font: { size: 12 } } } } }); }
+        if(ctxM) { chartMaterias = new Chart(ctxM.getContext('2d'), { type: 'bar', data: { labels: labelsM.length > 0 ? labelsM : ['-'], datasets: [{ data: dadosM.length > 0 ? dadosM : [0], backgroundColor: coresM.length > 0 ? coresM : ['#374151'], borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100, grid: { color: window.dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } }, x: { grid: { color: window.dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } }, plugins: { legend: { display: false }, title: { display: true, text: 'Aproveitamento Individual (%)', color: textColor, font: { size: 14, weight: 'bold' } }, tooltip: { callbacks: { label: function(context) { return ' Aproveitamento: ' + context.parsed.y + '%'; } } } } } }); }
         
         if(chartTempoMat) chartTempoMat.destroy(); 
         const ctxT = document.getElementById('graficoTempoMateria');
-        if(ctxT) { chartTempoMat = new Chart(ctxT.getContext('2d'), { type: 'bar', data: { labels: labelsT.length > 0 ? labelsT : ['-'], datasets: [{ label: 'Horas', data: dadosT.length > 0 ? dadosT : [0], backgroundColor: '#4f46e5', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } }); }
+        if(ctxT) { 
+            chartTempoMat = new Chart(ctxT.getContext('2d'), { 
+                type: 'bar', 
+                data: { labels: labelsT.length > 0 ? labelsT : ['-'], datasets: [{ label: 'Tempo', data: dadosT.length > 0 ? dadosT : [0], backgroundColor: '#4f46e5', borderRadius: 6 }] }, 
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    scales: { 
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: window.dadosEstudo.darkMode ? '#374151' : '#e5e7eb' },
+                            ticks: { 
+                                // MUDANÇA: A barra lateral esquerda (Eixo Y) vai mostrar valores simplificados como "1.5h"
+                                callback: function(value) { return (value / 60).toFixed(1) + 'h'; } 
+                            }
+                        }, 
+                        x: { grid: { color: window.dadosEstudo.darkMode ? '#374151' : '#e5e7eb' } } 
+                    }, 
+                    plugins: { 
+                        legend: { display: false }, 
+                        tooltip: { 
+                            callbacks: { 
+                                // MUDANÇA: O Tooltip converte os minutos brutos para Xh Ym
+                                label: function(context) { 
+                                    let minTotais = context.parsed.y;
+                                    let h = Math.floor(minTotais / 60);
+                                    let m = minTotais % 60;
+                                    return ` Tempo: ${h}h ${m}m`; 
+                                } 
+                            } 
+                        } 
+                    } 
+                } 
+            }); 
+        }
         
         const evoLabels = [], evoMin = [], evoQtd = [];
         for(let i=6; i>=0; i--) { let d = new Date(); d.setDate(d.getDate() - i); let dStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); evoLabels.push(`${d.getDate()}/${d.getMonth()+1}`); let h = window.dadosEstudo.historicoDias[dStr] || { minutos:0, acertos:0, erros:0 }; evoMin.push(h.minutos); evoQtd.push(h.acertos + h.erros); }
         
         if(chartEvolucao) chartEvolucao.destroy(); 
         const ctxE = document.getElementById('graficoEvolucao');
-        if(ctxE) { chartEvolucao = new Chart(ctxE.getContext('2d'), { type: 'line', data: { labels: evoLabels, datasets: [ { label: 'Minutos', data: evoMin, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.4, borderWidth: 2 }, { label: 'Questões', data: evoQtd, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4, borderWidth: 2 } ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } } }); }
+        if(ctxE) { 
+            chartEvolucao = new Chart(ctxE.getContext('2d'), { 
+                type: 'line', 
+                data: { labels: evoLabels, datasets: [ { label: 'Minutos', data: evoMin, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.4, borderWidth: 2 }, { label: 'Questões', data: evoQtd, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4, borderWidth: 2 } ] }, 
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                // MUDANÇA: Adicionado no gráfico de evolução semanal também
+                                label: function(context) {
+                                    if(context.dataset.label === 'Minutos') {
+                                        let h = Math.floor(context.parsed.y / 60);
+                                        let m = context.parsed.y % 60;
+                                        return ` Tempo: ${h}h ${m}m`;
+                                    }
+                                    return ` ${context.dataset.label}: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    } 
+                } 
+            }); 
+        }
     } catch(e) { console.error("Erro renderGraficos:", e); }
 };
 
