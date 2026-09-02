@@ -41,3 +41,6 @@ Plataforma web moderna e de alta performance desenvolvida para concurseiros que 
 1. Clone o repositório:
    ```bash
    git clone [https://github.com/BrunoMcpherson/EstudoPro.git](https://github.com/BrunoMcpherson/EstudoPro.git)
+
+   🌐 Deploy e Hospedagem
+O projeto encontra-se hospedado e otimizado na infraestrutura global da Vercel, com criptografia de ponta a ponta (HTTPS) e alta disponibilidade.
