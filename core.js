@@ -272,13 +272,20 @@ window.renderizarTabelasEListas = function() {
             listaPdfs.innerHTML = htmlPdfs;
         }
 
-        let htmlMat = '<option value="">Selecione a matéria...</option>'; let htmlMatT = '<option value="" disabled selected>Selecione a matéria...</option>'; let htmlFiltro = '<option value="todas">Todas as Matérias</option>'; let htmlTabQ = "";
+        let htmlMat = '<option value="">Selecione a matéria...</option>'; let htmlMatT = '<option value="" disabled selected>Selecione a matéria...</option>'; 
+        let htmlFiltro = '<option value="todas">Todas as Matérias</option>'; let htmlTabQ = "";
+
         (window.dadosEstudo.materias || []).forEach((mat, iMat) => { 
             if(!mat) return;
             const nomeMat = mat.nome || 'Matéria';
             htmlMat += `<option value="${iMat}">${nomeMat}</option>`; htmlMatT += `<option value="${nomeMat}">${nomeMat}</option>`; htmlFiltro += `<option value="${nomeMat}">${nomeMat}</option>`; 
-            const questoes = mat.questoes || { acertos: 0, erros: 0 }; const tM = questoes.acertos + questoes.erros; const pctM = tM === 0 ? 0 : Math.round((questoes.acertos / tM)*100); 
-            htmlTabQ += `<tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition"><td class="py-3 px-2 font-black text-gray-700 dark:text-gray-200 text-xs md:text-sm">${nomeMat}</td> <td class="py-3 text-center text-gray-500 dark:text-gray-400 font-bold text-xs">${tM}</td><td class="py-3 text-center font-black text-green-600 dark:text-green-400 text-xs">${questoes.acertos}</td> <td class="py-3 text-center font-black text-red-500 dark:text-red-400 text-xs">${questoes.erros}</td><td class="py-3 text-right px-2 font-black text-xs md:text-sm ${pctM >= 80 ? 'text-green-600 dark:text-green-400' : (pctM>=60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400')}">${pctM}%</td> </tr>`; 
+            
+            const questoes = mat.questoes || { acertos: 0, erros: 0 }; 
+            const tM = questoes.acertos + questoes.erros; 
+            const pctM = tM === 0 ? 0 : Math.round((questoes.acertos / tM)*100); 
+            
+            // Adicionado o Botão de Zerar no final da linha (td)
+            htmlTabQ += `<tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition"><td class="py-3 px-2 font-black text-gray-700 dark:text-gray-200 text-xs md:text-sm">${nomeMat}</td> <td class="py-3 text-center text-gray-500 dark:text-gray-400 font-bold text-xs">${tM}</td><td class="py-3 text-center font-black text-green-600 dark:text-green-400 text-xs">${questoes.acertos}</td> <td class="py-3 text-center font-black text-red-500 dark:text-red-400 text-xs">${questoes.erros}</td><td class="py-3 text-right px-2 font-black text-xs md:text-sm ${pctM >= 80 ? 'text-green-600 dark:text-green-400' : (pctM>=60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400')}">${pctM}%</td> <td class="py-3 text-center px-2"><button onclick="window.zerarQuestoesMateria(${iMat})" class="text-gray-400 hover:text-indigo-500 transition" title="Zerar Questões desta Matéria"><i class="fa-solid fa-rotate-left"></i></button></td></tr>`; 
         });
 
         if(document.getElementById('select-materia-questoes')) document.getElementById('select-materia-questoes').innerHTML = htmlMat; 
@@ -289,7 +296,7 @@ window.renderizarTabelasEListas = function() {
         if(document.getElementById('filtro-flashcard')) document.getElementById('filtro-flashcard').innerHTML = htmlFiltro; 
         if(document.getElementById('filtro-resumo')) document.getElementById('filtro-resumo').innerHTML = htmlFiltro; 
         if(document.getElementById('tabela-questoes')) document.getElementById('tabela-questoes').innerHTML = htmlTabQ;
-    } catch(e) { console.error("Erro renderTabelas:", e); }
+    } catch(e) { console.error("Erro Tabelas:", e); }
 };
 
 window.renderizarRevisoesCompleta = function() { 
@@ -439,6 +446,24 @@ window.atualizarGraficos = function() {
             }); 
         }
     } catch(e) { console.error("Erro renderGraficos:", e); }
+};
+
+window.zerarQuestoesMateria = function(iMat) {
+    const materia = window.dadosEstudo.materias[iMat];
+    if (confirm(`Tem certeza que deseja ZERAR as questões da matéria "${materia.nome}"?`)) {
+        if(materia && materia.questoes) {
+            // Subtrai do Total Geral para manter a consistência
+            window.dadosEstudo.questoesGerais.acertos = Math.max(0, window.dadosEstudo.questoesGerais.acertos - materia.questoes.acertos);
+            window.dadosEstudo.questoesGerais.erros = Math.max(0, window.dadosEstudo.questoesGerais.erros - materia.questoes.erros);
+            
+            // Zera a matéria específica
+            materia.questoes.acertos = 0;
+            materia.questoes.erros = 0;
+            
+            // Salva na nuvem e recarrega os gráficos
+            window.salvarLocal(true);
+        }
+    }
 };
 
 window.atualizarInterface = function() { 
