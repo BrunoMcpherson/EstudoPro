@@ -200,31 +200,31 @@ export default function Desempenho() {
           <div className="w-full h-full pb-4"><Bar data={dataAproveitamento} options={chartOptions} /></div>
         </div>
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border dark:border-gray-600 h-64">
-  <h3 className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide text-center">Evolução (Últimos 7 dias)</h3>
-  <div className="w-full h-full pb-4">
-    <Line 
-      data={dataEvolucao} 
-      options={{ 
-        ...chartOptions, 
-        plugins: { 
-          legend: { display: true, labels: { color: textColor } },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                // Se o dataset avaliado for o de minutos (dataset índice 0)
-                if (context.datasetIndex === 0) {
-                  return ` Minutos: ${formatarHorasMinutos(context.raw)}`;
+        <h3 className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide text-center">Evolução (Últimos 7 dias)</h3>
+        <div className="w-full h-full pb-4">
+            <Line 
+            data={dataEvolucao} 
+            options={{ 
+                ...chartOptions, 
+                plugins: { 
+                legend: { display: true, labels: { color: textColor } },
+                tooltip: {
+                    callbacks: {
+                    label: (context) => {
+                        // Se o dataset avaliado for o de minutos (dataset índice 0)
+                        if (context.datasetIndex === 0) {
+                        return ` Minutos: ${formatarHorasMinutos(context.raw)}`;
+                        }
+                        // Caso contrário (ex: Questões), exibe o número normal
+                        return ` Questões: ${context.raw}`;
+                    }
+                    }
                 }
-                // Caso contrário (ex: Questões), exibe o número normal
-                return ` Questões: ${context.raw}`;
-              }
-            }
-          }
-        } 
-      }} 
-    />
-  </div>
-</div>
+                } 
+            }} 
+            />
+        </div>
+        </div>
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border dark:border-gray-600 h-64">
           <h3 className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide text-center">Tempo por Matéria</h3>
           <div className="w-full h-full pb-4">
