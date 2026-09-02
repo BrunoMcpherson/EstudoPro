@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+/* 1. Ativa o modo escuro manual por classe (como no seu projeto anterior) */
+@variant dark (&:where(.dark, .dark *));
+
+/* 2. Estilização base do Body compatível com v4 */
+body {
+  @apply bg-gray-100 text-gray-800 transition-colors duration-300;
+}
+
+.dark body {
+  @apply bg-gray-900 text-gray-100;
+}
+
+/* 3. Scrollbar customizada */
+.scroll-custom::-webkit-scrollbar { width: 6px; }
+.scroll-custom::-webkit-scrollbar-track { background: transparent; }
+.scroll-custom::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.dark .scroll-custom::-webkit-scrollbar-thumb { background: #475569; }
+
+/* Efeitos 3D para os Flashcards */
+.perspective-1000 { perspective: 1000px; }
+.transform-style-3d { transform-style: preserve-3d; }
+.backface-hidden { backface-visibility: hidden; }
+.rotate-y-180 { transform: rotateY(180deg); }
