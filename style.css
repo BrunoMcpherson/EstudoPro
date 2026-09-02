@@ -1,0 +1,12 @@
+body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+.glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+.ofensiva-fire { color: #ff9800; text-shadow: 0 0 10px rgba(255, 152, 0, 0.5); }
+.scroll-custom::-webkit-scrollbar { width: 6px; }
+.scroll-custom::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+.tab-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; }
+.transicao-suave { transition: all 0.3s ease-in-out; }
+
+/* Fundo da tela de login */
+.bg-login {
+    background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%);
+}
