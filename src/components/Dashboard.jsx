@@ -17,39 +17,69 @@ export default function Dashboard() {
   const [rodando, setRodando] = useState(false);
   const [modoDescanso, setModoDescanso] = useState(false);
   
-  // Estados para inserção manual em Horas e Minutos separados
   const [horasManuais, setHorasManuais] = useState('');
   const [minutosManuais, setMinutosManuais] = useState('');
 
   const materias = dadosEstudo?.materias || [];
 
+  // =========================================================================
+  // NOVO MOTOR DE TEMPO (Resistente a abas inativas / segundo plano)
+  // =========================================================================
+
+  // 1. Relógio Baseado na Data do Sistema
   useEffect(() => {
     let intervalo = null;
+
     if (rodando) {
+      // Grava a hora exata na vida real em que o botão foi apertado
+      const momentoInicio = Date.now();
+      // Grava o tempo que estava no visor
+      const tempoInicial = tempo;
+
       intervalo = setInterval(() => {
-        setTempo((t) => {
+        // Calcula os segundos reais que passaram no mundo, ignorando bloqueios do navegador
+        const segundosDecorridos = Math.floor((Date.now() - momentoInicio) / 1000);
+        
+        setTempo(() => {
           if (abaTempo === 'pomodoro') {
-            if (t <= 1) {
-              setRodando(false);
-              if (!modoDescanso) {
-                finalizarSessao(minutosFoco, 'Pomodoro');
-                alert("Foco concluído! Hora de descansar.");
-                setModoDescanso(true);
-                return minutosPausa * 60;
-              } else {
-                setModoDescanso(false);
-                return minutosFoco * 60;
-              }
-            }
-            return t - 1;
+            const restante = tempoInicial - segundosDecorridos;
+            return restante <= 0 ? 0 : restante; // Crava em 0 no final
           } else {
-            return t + 1;
+            // Cronômetro (Progressivo)
+            return tempoInicial + segundosDecorridos;
           }
         });
       }, 1000);
     }
+
     return () => clearInterval(intervalo);
-  }, [rodando, abaTempo, modoDescanso, minutosFoco, minutosPausa, materiaSelecionada]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rodando, abaTempo]);
+
+  // 2. Monitorador de Fim de Ciclo do Pomodoro
+  useEffect(() => {
+    if (abaTempo === 'pomodoro' && rodando && tempo === 0) {
+      setRodando(false); // Pausa o relógio
+      
+      if (!modoDescanso) {
+        finalizarSessao(minutosFoco, 'Pomodoro');
+        setModoDescanso(true);
+        setTempo(minutosPausa * 60);
+        // Timeout pequeno garante que a tela mostre 00:00 antes de disparar o alerta
+        setTimeout(() => alert("🎯 Foco concluído! Hora de descansar."), 100);
+      } else {
+        setModoDescanso(false);
+        setTempo(minutosFoco * 60);
+        setTimeout(() => alert("💪 Descanso finalizado! Vamos voltar ao foco?"), 100);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tempo, rodando, abaTempo, modoDescanso, minutosFoco, minutosPausa]);
+
+
+  // =========================================================================
+  // DADOS E REGRAS DE NEGÓCIO
+  // =========================================================================
 
   if (loadingData) return <div className="text-center font-bold text-gray-400 mt-20">Carregando...</div>;
   if (!dadosEstudo) return <div className="text-center text-red-500 mt-20">Erro ao carregar dados.</div>;
