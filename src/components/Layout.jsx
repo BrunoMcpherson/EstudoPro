@@ -13,17 +13,13 @@ import Flashcards from './Flashcards';
 
 export default function Layout() {
   const { currentUser, logout } = useAuth();
-  const { dadosEstudo, salvarDados } = useData();
+  const { dadosEstudo, salvarDados, dadosGlobais, mudarProjeto, criarProjeto } = useData();
   const [abaAtiva, setAbaAtiva] = useState('dashboard');
   const [sidebarAberta, setSidebarAberta] = useState(true);
 
-  // Ativação do Dark Mode no HTML
   useEffect(() => {
-    if (dadosEstudo?.darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (dadosEstudo?.darkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [dadosEstudo?.darkMode]);
 
   const menuItems = [
@@ -37,6 +33,13 @@ export default function Layout() {
     { id: 'flashcards', icon: 'fa-clone', label: 'Flashcards' },
   ];
 
+  function handleCriarNovaProva() {
+    const nome = window.prompt("Qual o nome do novo concurso/prova?");
+    if (nome && nome.trim() !== '') {
+      criarProjeto(nome);
+    }
+  }
+
   const renderizarTela = () => {
     switch (abaAtiva) {
       case 'dashboard': return <Dashboard />;
@@ -47,18 +50,12 @@ export default function Layout() {
       case 'edital': return <Edital />;
       case 'resumos': return <Resumos />;
       case 'flashcards': return <Flashcards />;
-      default:
-        return (
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 text-center flex flex-col items-center justify-center h-full min-h-[400px] animate-fade-in">
-            <i className={`fa-solid ${menuItems.find(m => m.id === abaAtiva)?.icon} text-6xl text-indigo-200 dark:text-indigo-900/50 mb-6`}></i>
-            <h2 className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mb-2">
-              Aba: {menuItems.find(m => m.id === abaAtiva)?.label}
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400 font-medium">Estamos migrando esta tela para o formato React...</p>
-          </div>
-        );
+      default: return null;
     }
   };
+
+  const projetos = dadosGlobais?.projetos || {};
+  const projetoAtivoId = dadosGlobais?.projetoAtivoId;
 
   return (
     <div className="flex h-screen w-full bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans overflow-hidden transition-colors duration-300">
@@ -71,15 +68,7 @@ export default function Layout() {
         
         <nav className="flex-1 overflow-y-auto py-4 space-y-2 px-2 scroll-custom">
           {menuItems.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setAbaAtiva(item.id)}
-              className={`w-full flex items-center px-3 py-3 rounded-lg font-bold transition-colors ${
-                abaAtiva === item.id 
-                  ? 'bg-indigo-100 text-indigo-700 border-r-4 border-indigo-600 dark:bg-gray-700 dark:text-indigo-400' 
-                  : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
-              }`}
-            >
+            <button key={item.id} onClick={() => setAbaAtiva(item.id)} className={`w-full flex items-center px-3 py-3 rounded-lg font-bold transition-colors ${abaAtiva === item.id ? 'bg-indigo-100 text-indigo-700 border-r-4 border-indigo-600 dark:bg-gray-700 dark:text-indigo-400' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'}`}>
               <i className={`fa-solid ${item.icon} text-lg w-6 text-center shrink-0`}></i>
               {sidebarAberta && <span className="ml-2 whitespace-nowrap">{item.label}</span>}
             </button>
@@ -93,21 +82,32 @@ export default function Layout() {
             <button onClick={() => setSidebarAberta(!sidebarAberta)} className="text-gray-500 hover:text-indigo-600 dark:text-gray-400 transition">
               <i className="fa-solid fa-bars text-xl"></i>
             </button>
-            <div className="font-bold text-gray-600 dark:text-gray-300 hidden sm:block uppercase">
-              {menuItems.find(m => m.id === abaAtiva)?.label}
+            
+            {/* NOVO SELETOR DE PROVAS (WORKSPACE) */}
+            <div className="hidden sm:flex items-center gap-2 bg-indigo-50 dark:bg-gray-700 rounded-lg p-1 border dark:border-gray-600">
+              <i className="fa-solid fa-layer-group text-indigo-500 ml-2"></i>
+              <select 
+                value={projetoAtivoId || ''} 
+                onChange={(e) => mudarProjeto(e.target.value)}
+                className="bg-transparent text-indigo-800 dark:text-indigo-200 font-black text-sm outline-none px-2 py-1 cursor-pointer"
+              >
+                {Object.keys(projetos).map(id => (
+                  <option key={id} value={id} className="dark:bg-gray-800">{projetos[id].nome}</option>
+                ))}
+              </select>
+              <button onClick={handleCriarNovaProva} className="text-indigo-600 hover:text-white hover:bg-indigo-600 w-6 h-6 rounded flex items-center justify-center transition" title="Nova Prova">
+                <i className="fa-solid fa-plus text-xs"></i>
+              </button>
             </div>
           </div>
+
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => salvarDados({...dadosEstudo, darkMode: !dadosEstudo.darkMode})} 
-              className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-yellow-400 w-10 h-10 rounded-full font-bold transition hover:bg-gray-200 dark:hover:bg-gray-600"
-              title="Alternar Tema"
-            >
+            <button onClick={() => salvarDados({...dadosEstudo, darkMode: !dadosEstudo.darkMode})} className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-yellow-400 w-10 h-10 rounded-full font-bold transition hover:bg-gray-200 dark:hover:bg-gray-600" title="Alternar Tema">
               <i className={`fa-solid ${dadosEstudo?.darkMode ? 'fa-sun' : 'fa-moon'}`}></i>
             </button>
-            <div className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm flex items-center gap-2">
+            <div className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm flex items-center gap-2 hidden md:flex">
               <i className="fa-solid fa-cloud-check text-green-500"></i> 
-              <span className="hidden sm:block">Logado: {currentUser?.email}</span>
+              <span>{currentUser?.email}</span>
             </div>
             <button onClick={logout} className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 w-10 h-10 rounded-full flex items-center justify-center font-bold transition">
               <i className="fa-solid fa-right-from-bracket"></i>
