@@ -4,123 +4,180 @@ import { useData } from '../context/DataContext';
 export default function Edital() {
   const { dadosEstudo, salvarDados } = useData();
   const [novaMateria, setNovaMateria] = useState('');
-  const [topicosTexto, setTopicosTexto] = useState('');
-  
-  const [expandidos, setExpandidos] = useState(dadosEstudo.editalExpandidos || {});
-  const materias = dadosEstudo.materias || [];
+  const [materiaAtiva, setMateriaAtiva] = useState(null);
+  const [textoTopicos, setTextoTopicos] = useState('');
+  const [separador, setSeparador] = useState(','); // Estado do seletor
 
-  async function toggleExpandir(index) {
-    const novoEstado = { ...expandidos, [index]: expandidos[index] === undefined ? false : !expandidos[index] };
-    setExpandidos(novoEstado);
-    await salvarDados({ ...dadosEstudo, editalExpandidos: novoEstado });
-  }
+  const materias = dadosEstudo?.materias || [];
 
   async function handleAddMateria(e) {
     e.preventDefault();
-    if (!novaMateria) return alert('Digite o nome da matéria!');
-
-    const linhas = topicosTexto.split(/[\n,]+/).map(l => l.trim()).filter(l => l !== "");
-    const subtemas = linhas.map(l => ({ nome: l, concluido: false }));
-
-    const novaLista = [...materias, {
-      nome: novaMateria,
-      subtemas,
-      questoes: { acertos: 0, erros: 0 },
-      tempo: 0
-    }];
-
+    if (!novaMateria.trim()) return;
+    
+    const novaLista = [...materias, { nome: novaMateria.trim(), topicos: [], expandido: true }];
     await salvarDados({ ...dadosEstudo, materias: novaLista });
     setNovaMateria('');
-    setTopicosTexto('');
   }
 
-  async function handleToggleSubtema(materiaIndex, subtemaIndex) {
-    const novaLista = JSON.parse(JSON.stringify(materias));
-    const sub = novaLista[materiaIndex].subtemas[subtemaIndex];
-    sub.concluido = !sub.concluido;
+  async function handleAddTopicosMassa(indexMateria) {
+    if (!textoTopicos.trim()) return;
+
+    // Lógica inteligente de separação
+    let arraySeparado = [];
+    if (separador === '\\n') {
+      arraySeparado = textoTopicos.split('\n');
+    } else {
+      arraySeparado = textoTopicos.split(separador);
+    }
+
+    const novosTopicos = arraySeparado
+      .map(t => t.trim().replace(/\n/g, ' ')) // Remove quebras de linha indesejadas no meio do texto
+      .filter(t => t.length > 0)
+      .map(t => ({ nome: t, concluido: false }));
+
+    if (novosTopicos.length === 0) return;
+
+    const novaLista = [...materias];
+    novaLista[indexMateria].topicos = [...(novaLista[indexMateria].topicos || []), ...novosTopicos];
+    
+    await salvarDados({ ...dadosEstudo, materias: novaLista });
+    setTextoTopicos('');
+    setMateriaAtiva(null);
+  }
+
+  async function toggleTopico(mIndex, tIndex) {
+    const novaLista = [...materias];
+    novaLista[mIndex].topicos[tIndex].concluido = !novaLista[mIndex].topicos[tIndex].concluido;
+    await salvarDados({ ...dadosEstudo, materias: novaLista });
+  }
+  
+  async function toggleExpandir(mIndex) {
+    const novaLista = [...materias];
+    novaLista[mIndex].expandido = !novaLista[mIndex].expandido;
     await salvarDados({ ...dadosEstudo, materias: novaLista });
   }
 
-  async function handleDeletarMateria(index) {
-    if (!window.confirm("Excluir matéria e todo seu histórico?")) return;
-    const novaLista = materias.filter((_, i) => i !== index);
+  async function removerMateria(mIndex) {
+    if(!window.confirm("Apagar matéria e todos os tópicos?")) return;
+    const novaLista = materias.filter((_, i) => i !== mIndex);
     await salvarDados({ ...dadosEstudo, materias: novaLista });
   }
 
-  async function handleDeletarSubtema(materiaIndex, subtemaIndex) {
-    if (!window.confirm("Excluir este tópico específico?")) return;
-    const novaLista = JSON.parse(JSON.stringify(materias));
-    novaLista[materiaIndex].subtemas.splice(subtemaIndex, 1);
+  async function removerTopico(mIndex, tIndex) {
+    const novaLista = [...materias];
+    novaLista[mIndex].topicos = novaLista[mIndex].topicos.filter((_, i) => i !== tIndex);
     await salvarDados({ ...dadosEstudo, materias: novaLista });
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-4 md:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 w-full animate-fade-in">
-      <h2 className="text-xl md:text-2xl font-black text-gray-800 dark:text-white mb-6">
-        <i className="fa-solid fa-list-check text-indigo-500 mr-2"></i> Estrutura do Edital
-      </h2>
+    <div className="space-y-6 animate-fade-in">
+      
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border dark:border-gray-700">
+        <h2 className="text-xl font-black mb-4">Adicionar Nova Matéria</h2>
+        <form onSubmit={handleAddMateria} className="flex gap-3">
+          <input 
+            type="text" 
+            value={novaMateria} 
+            onChange={e => setNovaMateria(e.target.value)} 
+            placeholder="Ex: Direito Constitucional" 
+            className="flex-1 p-3 border rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white dark:border-gray-600 outline-none font-bold"
+          />
+          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-black transition shadow">
+            Adicionar
+          </button>
+        </form>
+      </div>
 
-      <form onSubmit={handleAddMateria} className="bg-indigo-50 dark:bg-gray-700 p-4 md:p-6 rounded-2xl border border-indigo-100 dark:border-gray-600 mb-8">
-        <p className="text-[10px] md:text-sm font-black text-indigo-800 dark:text-indigo-300 mb-3 uppercase tracking-wide">
-          Cadastrar Matéria e Tópicos
-        </p>
-        <div className="flex flex-col md:flex-row gap-3">
-          <input type="text" placeholder="Matéria (Ex: Direito Penal)" value={novaMateria} onChange={(e) => setNovaMateria(e.target.value)} className="w-full md:w-1/3 p-3 border rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white font-bold focus:ring-2 focus:ring-indigo-500" />
-          <input type="text" placeholder="Tópicos separados por vírgula..." value={topicosTexto} onChange={(e) => setTopicosTexto(e.target.value)} className="w-full md:w-2/3 p-3 border rounded-lg outline-none bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500" />
-          <button type="submit" className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-black hover:bg-indigo-700 transition">Add</button>
-        </div>
-      </form>
-
-      <div className="space-y-6">
-        {materias.length === 0 && <p className="text-center font-bold text-gray-400">Nenhuma matéria cadastrada.</p>}
-        
-        {materias.map((mat, iMat) => {
-          const subtemas = mat.subtemas || [];
-          const concluidos = subtemas.filter(s => s.concluido).length;
-          const porcentagem = subtemas.length === 0 ? 0 : Math.round((concluidos / subtemas.length) * 100);
-          const horas = Math.floor((mat.tempo || 0) / 60);
-          const minutos = (mat.tempo || 0) % 60;
-          const tempoFormatado = mat.tempo ? (horas > 0 ? `${horas}h ` : '') + `${minutos}m` : '0m';
-          
-          const isExpandido = expandidos[iMat] === undefined ? true : expandidos[iMat];
+      <div className="space-y-4">
+        {materias.map((materia, mIndex) => {
+          const topicos = materia.topicos || [];
+          const concluidos = topicos.filter(t => t.concluido).length;
+          const progresso = topicos.length > 0 ? Math.round((concluidos / topicos.length) * 100) : 0;
 
           return (
-            <div key={iMat} className="border dark:border-gray-700 rounded-2xl p-4 md:p-6 bg-white dark:bg-gray-800 shadow-sm border-l-[6px] border-l-indigo-500 transition-all">
-              <div className="flex justify-between items-center mb-4 gap-2">
-                <div className="flex-1 cursor-pointer flex items-center gap-3" onClick={() => toggleExpandir(iMat)}>
-                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex justify-center items-center shrink-0">
-                    <i className={`fa-solid ${isExpandido ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-500 text-xs`}></i>
+            <div key={mIndex} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
+              <div className="p-4 flex items-center justify-between bg-gray-50 dark:bg-gray-750 border-b dark:border-gray-700 cursor-pointer" onClick={() => toggleExpandir(mIndex)}>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <button className="text-gray-400 hover:text-indigo-500 w-6">
+                      <i className={`fa-solid ${materia.expandido ? 'fa-chevron-down' : 'fa-chevron-right'}`}></i>
+                    </button>
+                    <h3 className="font-black text-lg text-gray-800 dark:text-white">{materia.nome}</h3>
+                    <span className="text-xs font-bold text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-lg">
+                      {concluidos}/{topicos.length}
+                    </span>
                   </div>
-                  <h3 className="font-black text-lg md:text-xl text-gray-800 dark:text-white truncate">{mat.nome}</h3>
-                  <span className="hidden sm:flex text-xs font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/50 px-3 py-1 rounded-full uppercase items-center">
-                    <i className="fa-solid fa-clock mr-1"></i> {tempoFormatado}
-                  </span>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                    <div className="bg-indigo-500 h-full transition-all duration-500" style={{ width: `${progresso}%` }}></div>
+                  </div>
                 </div>
-                <button onClick={() => handleDeletarMateria(iMat)} className="text-gray-400 hover:text-red-500 bg-gray-50 dark:bg-gray-700 w-10 h-10 rounded-full flex justify-center items-center transition">
-                  <i className="fa-solid fa-trash text-sm"></i>
+                <button onClick={(e) => { e.stopPropagation(); removerMateria(mIndex); }} className="ml-4 text-red-400 hover:text-red-600 p-2">
+                  <i className="fa-solid fa-trash"></i>
                 </button>
               </div>
 
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-3">
-                  <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-3 rounded-full transition-all duration-500" style={{ width: `${porcentagem}%` }}></div>
-                </div>
-                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 w-10 text-right">{porcentagem}%</span>
-              </div>
+              {materia.expandido && (
+                <div className="p-4 space-y-4">
+                  {materiaAtiva === mIndex ? (
+                    <div className="bg-indigo-50 dark:bg-gray-700 p-4 rounded-xl border border-indigo-100 dark:border-gray-600">
+                      
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
+                        <label className="text-xs font-bold text-indigo-800 dark:text-indigo-200 uppercase">Cole o texto do edital aqui</label>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Separar por:</span>
+                          <select 
+                            value={separador} 
+                            onChange={e => setSeparador(e.target.value)}
+                            className="p-1.5 text-xs font-bold border rounded-lg bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 outline-none cursor-pointer"
+                          >
+                            <option value=",">Vírgula ( , )</option>
+                            <option value=";">Ponto e Vírgula ( ; )</option>
+                            <option value=".">Ponto Final ( . )</option>
+                            <option value="/">Barra ( / )</option>
+                            <option value="\">Barra Invertida ( \ )</option>
+                            <option value=":">Dois Pontos ( : )</option>
+                            <option value="\n">Quebra de Linha (Enter)</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <textarea 
+                        value={textoTopicos} 
+                        onChange={e => setTextoTopicos(e.target.value)} 
+                        placeholder="Exemplo 1, Exemplo 2..." 
+                        className="w-full p-3 border rounded-xl bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 outline-none font-medium text-sm h-32 mb-3 resize-none scroll-custom"
+                      ></textarea>
+                      
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => { setMateriaAtiva(null); setTextoTopicos(''); }} className="px-4 py-2 font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                          Cancelar
+                        </button>
+                        <button onClick={() => handleAddTopicosMassa(mIndex)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-black shadow transition">
+                          Salvar Tópicos
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setMateriaAtiva(mIndex)} className="w-full p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-500 dark:text-gray-400 font-bold hover:border-indigo-500 hover:text-indigo-500 transition flex items-center justify-center gap-2">
+                      <i className="fa-solid fa-plus"></i> Adicionar Tópicos em Massa
+                    </button>
+                  )}
 
-              {isExpandido && (
-                <div className="mt-4 border-t dark:border-gray-700 pt-4">
-                  <div className="max-h-64 overflow-y-auto scroll-custom border-l-2 border-gray-100 dark:border-gray-700 ml-4 pl-2 space-y-1">
-                    {subtemas.map((sub, iSub) => (
-                      <div key={iSub} className="flex justify-between items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg group transition">
-                        <label className="flex items-center gap-3 flex-1 cursor-pointer">
-                          <input type="checkbox" checked={sub.concluido} onChange={() => handleToggleSubtema(iMat, iSub)} className="w-5 h-5 text-indigo-600 rounded cursor-pointer border-gray-300" />
-                          <span className={`font-medium text-sm md:text-base transition-all ${sub.concluido ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>{sub.nome}</span>
-                        </label>
-                        <button onClick={() => handleDeletarSubtema(iMat, iSub)} className="text-gray-300 hover:text-red-500 px-2 opacity-0 group-hover:opacity-100 transition"><i className="fa-solid fa-trash"></i></button>
+                  <div className="space-y-2 mt-4">
+                    {topicos.map((topico, tIndex) => (
+                      <div key={tIndex} className={`flex items-start gap-3 p-3 rounded-lg border transition ${topico.concluido ? 'bg-green-50/50 border-green-200 dark:bg-green-900/20 dark:border-green-800' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
+                        <button onClick={() => toggleTopico(mIndex, tIndex)} className={`mt-0.5 shrink-0 w-5 h-5 rounded border flex items-center justify-center transition ${topico.concluido ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 dark:border-gray-600 hover:border-indigo-500'}`}>
+                          {topico.concluido && <i className="fa-solid fa-check text-xs"></i>}
+                        </button>
+                        <span className={`flex-1 text-sm font-medium ${topico.concluido ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-gray-200'}`}>
+                          {topico.nome}
+                        </span>
+                        <button onClick={() => removerTopico(mIndex, tIndex)} className="text-gray-300 hover:text-red-500 transition">
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
                       </div>
                     ))}
-                    {subtemas.length === 0 && <p className="text-xs text-gray-400 italic">Nenhum tópico cadastrado.</p>}
                   </div>
                 </div>
               )}

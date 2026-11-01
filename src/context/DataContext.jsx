@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { db } from '../firebase'; // Verifique se o caminho do seu firebase.js está correto
+import { db } from '../firebase';
 import { useAuth } from './AuthContext';
 
 const DataContext = createContext();
@@ -23,7 +23,7 @@ export function DataProvider({ children }) {
       if (docSnap.exists()) {
         const data = docSnap.data();
         
-        // MUDANÇA: Se for a estrutura antiga, faz a migração automática para Multi-Provas
+        // Migração segura caso ainda esteja na estrutura antiga
         if (!data.projetos) {
            const idPadrao = 'proj_' + Date.now();
            const projetoPadrao = {
@@ -32,6 +32,8 @@ export function DataProvider({ children }) {
              materias: data.materias || [],
              flashcards: data.flashcards || [],
              revisoes: data.revisoes || [],
+             resumos: data.resumos || [],
+             pdfs: data.pdfs || [],
              tempoTotal: data.tempoTotal || 0,
              questoesGerais: data.questoesGerais || { acertos: 0, erros: 0 },
              pomodorosRealizados: data.pomodorosRealizados || 0,
@@ -42,22 +44,25 @@ export function DataProvider({ children }) {
            };
 
            const newData = {
-             darkMode: data.darkMode || false,
+             darkMode: data.darkMode ?? true,
              projetoAtivoId: idPadrao,
              projetos: { [idPadrao]: projetoPadrao }
            };
-           setDoc(docRef, newData); // Salva a migração sem perder nada
+           // BLINDAGEM: merge: true evita apagar dados existentes acidentalmente
+           setDoc(docRef, newData, { merge: true });
         } else {
           setDadosGlobais(data);
         }
       } else {
-         // Criação para usuário totalmente novo
+         // BLINDAGEM CRÍTICA: Ignora se for apenas leitura vazia de cache offline
+         if (docSnap.metadata.fromCache) return;
+
          const novoId = 'proj_' + Date.now();
          setDoc(docRef, {
-           darkMode: false,
+           darkMode: true,
            projetoAtivoId: novoId,
            projetos: { [novoId]: { nome: 'Meu Primeiro Edital', dataProva: '' } }
-         });
+         }, { merge: true });
       }
       setLoadingData(false);
     });
@@ -65,20 +70,17 @@ export function DataProvider({ children }) {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Função para salvar dados apenas no PROJETO ATIVO
   async function salvarDados(dadosAtualizadosDoProjeto) {
     if (!currentUser || !dadosGlobais) return;
     
     const { projetoAtivoId, projetos } = dadosGlobais;
     
-    // O dark mode é a única coisa que fica fora do projeto (é uma config do usuário)
     const darkModeAtualizado = dadosAtualizadosDoProjeto.darkMode !== undefined 
       ? dadosAtualizadosDoProjeto.darkMode 
       : dadosGlobais.darkMode;
 
     const { darkMode, concursos, ...dadosLimpos } = dadosAtualizadosDoProjeto;
     
-    // Se o Dashboard antigo mandou alterar o nome do concurso, salva no projeto atual
     if (concursos && concursos.length > 0) {
       dadosLimpos.nome = concursos[0].nome;
       dadosLimpos.dataProva = concursos[0].data;
@@ -99,15 +101,23 @@ export function DataProvider({ children }) {
     }, { merge: true });
   }
 
-  // Novas funções para gerenciar provas
   async function criarProjeto(nome) {
     if (!currentUser || !dadosGlobais) return;
     const novoId = 'proj_' + Date.now();
-    const novoProjeto = { nome, dataProva: '', materias: [], tempoTotal: 0, questoesGerais: {acertos:0, erros:0} };
+    const novoProjeto = { 
+      nome, 
+      dataProva: '', 
+      materias: [], 
+      tempoTotal: 0, 
+      questoesGerais: { acertos: 0, erros: 0 },
+      pomodorosRealizados: 0,
+      paginasLidas: 0,
+      ofensiva: { dias: 0, ultimaData: null }
+    };
     
     await setDoc(doc(db, 'usuarios', currentUser.uid), {
       ...dadosGlobais,
-      projetoAtivoId: novoId, // Já entra na nova prova
+      projetoAtivoId: novoId,
       projetos: { ...dadosGlobais.projetos, [novoId]: novoProjeto }
     }, { merge: true });
   }
@@ -117,15 +127,13 @@ export function DataProvider({ children }) {
     await setDoc(doc(db, 'usuarios', currentUser.uid), { projetoAtivoId: idProjeto }, { merge: true });
   }
 
-  // O "dadosEstudo" que as telas veem é APENAS o projeto ativo. Mágica pura!
   const dadosEstudo = dadosGlobais && dadosGlobais.projetos && dadosGlobais.projetoAtivoId
     ? { 
         ...dadosGlobais.projetos[dadosGlobais.projetoAtivoId], 
         darkMode: dadosGlobais.darkMode,
-        // Mantém a compatibilidade com o Dashboard que usa .concursos[0]
         concursos: [{ 
-          nome: dadosGlobais.projetos[dadosGlobais.projetoAtivoId].nome, 
-          data: dadosGlobais.projetos[dadosGlobais.projetoAtivoId].dataProva 
+          nome: dadosGlobais.projetos[dadosGlobais.projetoAtivoId]?.nome || 'Meu Edital', 
+          data: dadosGlobais.projetos[dadosGlobais.projetoAtivoId]?.dataProva || '' 
         }]
       }
     : null;
