@@ -326,7 +326,7 @@ Retorne APENAS um objeto JSON válido (sem blocos markdown) no seguinte formato 
             Authorization: `Bearer ${chaveLimpa}`
           },
           body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
+            model: 'llama-3.1-70b-versatile', // <-- VERSÃO ESTÁVEL CORRIGIDA
             messages: [
               { role: 'system', content: 'Responda estritamente em JSON válido.' },
               { role: 'user', content: promptSistema }
