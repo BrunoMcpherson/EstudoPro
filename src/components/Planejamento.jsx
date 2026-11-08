@@ -14,7 +14,8 @@ const PESOS_DOMINIO = {
   avancado: { label: 'Avançado (Só Revisão/Questões)', fator: 0.8 }
 };
 
-const STORAGE_GEMINI_KEY = 'estudopro_gemini_api_key';
+const STORAGE_AI_KEY = 'estudopro_ai_api_key';
+const STORAGE_AI_PROVIDER = 'estudopro_ai_provider';
 
 export default function Planejamento() {
   const { dadosEstudo, salvarDados } = useData();
@@ -29,7 +30,7 @@ export default function Planejamento() {
     pesoBasicas: 1,
     questoesEspecificasTotal: 40,
     pesoEspecificas: 2,
-    modoDistribuicao: 'bloco', // 'bloco' (automático pelo total do edital) | 'manual'
+    modoDistribuicao: 'bloco',
     blocosConcluidos: {},
     minutosNoCiclo: {},
     ocultarTutorial: false
@@ -47,13 +48,15 @@ export default function Planejamento() {
 
   const [mostrarTutorial, setMostrarTutorial] = useState(!configPlan.ocultarTutorial);
   const [modalIaAberto, setModalIaAberto] = useState(false);
+  const [provedorIa, setProvedorIa] = useState(
+    () => localStorage.getItem(STORAGE_AI_PROVIDER) || 'groq'
+  );
   const [apiKeyInput, setApiKeyInput] = useState(
-    () => import.meta.env?.VITE_GEMINI_API_KEY || localStorage.getItem(STORAGE_GEMINI_KEY) || ''
+    () => localStorage.getItem(STORAGE_AI_KEY) || ''
   );
   const [analisandoIa, setAnalisandoIa] = useState(false);
   const [erroIa, setErroIa] = useState('');
 
-  // Calcula domínio sugerido com base na taxa de acertos
   function obterDominioEfetivo(m) {
     if (m.nivelDominio && m.nivelDominio !== 'auto') return m.nivelDominio;
     const acertos = m.acertos || 0;
@@ -65,14 +68,11 @@ export default function Planejamento() {
     return 'iniciante';
   }
 
-  // 1. Calcula o peso relativo de cada matéria dentro do seu Bloco (Básico ou Específico)
-  // levando em conta a quantidade de tópicos do edital e a incidência na banca
   const materiasComPesoBloco = materias.map((m, index) => {
     const categoria = m.categoria || 'especifico';
     const incidencia = m.incidenciaBanca || 'media';
     const fatorInc = PESOS_INCIDENCIA[incidencia]?.fator || 1.0;
     const qtdTopicos = (m.topicos || []).length;
-    // Raiz quadrada amortece editais com muitos subtópicos para manter equilíbrio
     const fatorTamanhoEdital = Math.sqrt(Math.max(4, qtdTopicos));
     const pesoRelativoNoBloco = fatorTamanhoEdital * fatorInc;
 
@@ -95,7 +95,6 @@ export default function Planejamento() {
     .filter((m) => m.categoria === 'especifico')
     .reduce((acc, m) => acc + m.pesoRelativoNoBloco, 0);
 
-  // 2. Calcula questões estimadas por matéria e o Índice de Relevância (IRP)
   const materiasCalculadas = materiasComPesoBloco.map((m) => {
     const dominioKey = obterDominioEfetivo(m);
     const fatorDom = PESOS_DOMINIO[dominioKey]?.fator || 1.15;
@@ -131,7 +130,6 @@ export default function Planejamento() {
 
   const somaIrpTotal = materiasCalculadas.reduce((acc, m) => acc + m.irp, 0);
 
-  // 3. Distribuição final de Horas e Blocos da Semana
   const planejamentoFinal = materiasCalculadas
     .map((m) => {
       const percentual = somaIrpTotal > 0 ? (m.irp / somaIrpTotal) * 100 : 0;
@@ -188,14 +186,89 @@ export default function Planejamento() {
     await salvarDados({ ...dadosEstudo, materias: novasMaterias });
   }
 
-  // MOTOR DE IA: Pesquisa perfil histórico da banca e classifica matérias + tópicos quentes
+  // OPÇÃO 1: MOTOR ESTATÍSTICO LOCAL (NÃO PRECISA DE CHAVE DE API)
+  async function executarRaioXLocalSemChave() {
+    if (materias.length === 0) {
+      setErroIa('Cadastre suas matérias na aba "Meu Edital" primeiro.');
+      return;
+    }
+
+    const regexBasicas = /portugu|racioc|lógic|informátic|atualidades|inglês|ética|constitucional|administrativo/i;
+    const regexCore = /portugu|específic|ti|sistema|dados|segurança|redes|desenvolvimento|software|engenharia|direito|auditoria|contabilidade/i;
+    const regexAltaPrioridadeTopico = /segurança|redes|banco de dados|sql|arquitetura|engenharia|scrum|ágil|cloud|nuvem|linux|windows|python|java|api|constitucional|administrativo|licita|4\.133|sintaxe|crase|interpretação|concordância|regência|lógica|proposiç|estatística/i;
+
+    const bancaNorm = (banca || 'Banca').trim();
+
+    const novasMaterias = materias.map((mat) => {
+      const nomeMat = mat.nome || '';
+      const ehBasica = regexBasicas.test(nomeMat);
+      const categoria = ehBasica ? 'basico' : 'especifico';
+
+      const listaTopicos = (mat.topicos || []).map((t) => t.nome);
+      let incidenciaBanca = 'media';
+
+      if (/portugu/i.test(nomeMat) || (!ehBasica && listaTopicos.length >= 8)) {
+        incidenciaBanca = 'altissima';
+      } else if (regexCore.test(nomeMat) || listaTopicos.length >= 5) {
+        incidenciaBanca = 'alta';
+      }
+
+      // Seleciona os tópicos mais cobrados com base nas palavras-chave de alta incidência
+      let topicosQuentes = listaTopicos.filter((t) => regexAltaPrioridadeTopico.test(t)).slice(0, 4);
+      if (topicosQuentes.length === 0 && listaTopicos.length > 0) {
+        topicosQuentes = listaTopicos.slice(0, Math.min(3, listaTopicos.length));
+      }
+
+      let estiloBanca = `Foco em resolução de questões recentes da ${bancaNorm} e revisão dos tópicos centrais.`;
+      if (/vunesp/i.test(bancaNorm)) {
+        estiloBanca = ehBasica
+          ? 'Vunesp cobra literalidade, interpretação direta e gramática normativa clássica.'
+          : 'Vunesp foca em conceitos diretos do edital, comandos práticos e padrões de projeto/normas.';
+      } else if (/cebraspe|cespe/i.test(bancaNorm)) {
+        estiloBanca = 'Cebraspe exige atenção a pegadinhas conceituais, jurisprudência e casos práticos.';
+      } else if (/fgv/i.test(bancaNorm)) {
+        estiloBanca = 'FGV cobra estudos de caso extensos, interpretação avançada e aplicação prática.';
+      } else if (/fcc/i.test(bancaNorm)) {
+        estiloBanca = 'FCC valoriza velocidade de prova, domínio técnico amplo do edital e letra da norma.';
+      }
+
+      return {
+        ...mat,
+        categoria,
+        incidenciaBanca,
+        pesoProva: categoria === 'basico' ? Number(pesoBasicas) : Number(pesoEspecificas),
+        resumoCobranca: estiloBanca,
+        topicosQuentes
+      };
+    });
+
+    await salvarDados({
+      ...dadosEstudo,
+      materias: novasMaterias,
+      configPlanejamento: {
+        ...configPlan,
+        banca,
+        cargoOrgao,
+        questoesBasicasTotal,
+        pesoBasicas,
+        questoesEspecificasTotal,
+        pesoEspecificas,
+        modoDistribuicao: 'bloco'
+      }
+    });
+
+    setModoDistribuicao('bloco');
+    setModalIaAberto(false);
+  }
+
+  // OPÇÃO 2: MOTOR DE IA (SUPORTA GROQ GRATUITO OU GEMINI COM HEADER X-GOOG-API-KEY)
   async function executarRaioXBancaIA(e) {
     e.preventDefault();
     setErroIa('');
 
     const chaveLimpa = apiKeyInput.trim();
     if (!chaveLimpa) {
-      setErroIa('Insira uma chave gratuita da API do Google Gemini para realizar a análise histórica.');
+      setErroIa('Cole sua chave de API ou clique no botão "Calibrar sem Chave (Instantâneo)" abaixo.');
       return;
     }
 
@@ -204,14 +277,18 @@ export default function Planejamento() {
       return;
     }
 
-    localStorage.setItem(STORAGE_GEMINI_KEY, chaveLimpa);
+    // Detecta automaticamente se o usuário colou uma chave da Groq (gsk_...)
+    const provedorEfetivo = chaveLimpa.startsWith('gsk_') ? 'groq' : provedorIa;
+
+    localStorage.setItem(STORAGE_AI_KEY, chaveLimpa);
+    localStorage.setItem(STORAGE_AI_PROVIDER, provedorEfetivo);
     setAnalisandoIa(true);
 
     try {
       const resumoEdital = materias.map((m, idx) => ({
         index: idx,
         nome: m.nome,
-        amostraTopicos: (m.topicos || []).slice(0, 40).map((t) => t.nome)
+        amostraTopicos: (m.topicos || []).slice(0, 35).map((t) => t.nome)
       }));
 
       const promptSistema = `
@@ -225,42 +302,87 @@ Analise a prova abaixo com base no histórico de provas anteriores dessa banca p
 Matérias e tópicos cadastrados pelo aluno:
 ${JSON.stringify(resumoEdital)}
 
-Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
+Retorne APENAS um objeto JSON válido (sem blocos markdown) no seguinte formato exato:
 {
   "analiseMaterias": [
     {
       "index": 0,
       "categoria": "basico" ou "especifico",
       "incidenciaBanca": "baixa" | "media" | "alta" | "altissima",
-      "questoesEstimadas": número inteiro estimando quantas questões dessa matéria costumam cair dentro do bloco,
+      "questoesEstimadas": numero_inteiro,
       "resumoCobranca": "frase curta de até 140 caracteres explicando o estilo e foco da banca nessa matéria",
-      "topicosQuentes": ["até 4 assuntos/tópicos dessa matéria que mais caem historicamente nessa banca"]
+      "topicosQuentes": ["até 4 assuntos dessa matéria que mais caem historicamente nessa banca"]
     }
   ]
 }`;
 
-        const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${chaveLimpa}`,
-        {
+      let textoJson = '';
+
+      if (provedorEfetivo === 'groq') {
+        const respGroq = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${chaveLimpa}`
+          },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: promptSistema }] }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.2
-            }
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              { role: 'system', content: 'Responda estritamente em JSON válido.' },
+              { role: 'user', content: promptSistema }
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.2
           })
+        });
+
+        if (!respGroq.ok) {
+          throw new Error(`Erro na API Groq (${respGroq.status}). Verifique se a chave (gsk_...) está correta.`);
         }
-      );
+        const dataGroq = await respGroq.json();
+        textoJson = dataGroq?.choices?.[0]?.message?.content;
+      } else {
+        // Chamada Gemini enviando tanto no header x-goog-api-key quanto com fallback de modelos
+        const modelosGemini = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest'];
+        let ultimoStatus = 401;
 
-      if (!response.ok) {
-        throw new Error(`Erro na API (${response.status}). Verifique se a chave da API é válida.`);
+        for (const mod of modelosGemini) {
+          const respGem = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': chaveLimpa
+              },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: promptSistema }] }],
+                generationConfig: {
+                  responseMimeType: 'application/json',
+                  temperature: 0.2
+                }
+              })
+            }
+          );
+
+          if (respGem.ok) {
+            const dataGem = await respGem.json();
+            textoJson = dataGem?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (textoJson) break;
+          } else {
+            ultimoStatus = respGem.status;
+          }
+        }
+
+        if (!textoJson) {
+          if (chaveLimpa.startsWith('AQ.')) {
+            throw new Error(
+              `Erro ${ultimoStatus}: Chaves iniciadas com "AQ." são tokens restritos de projeto Cloud. Use uma chave gratuita da Groq (gsk_...) na aba acima ou clique em "Calibrar sem Chave".`
+            );
+          }
+          throw new Error(`Erro na API Gemini (${ultimoStatus}). Use a opção Groq (Gratuita) ou o botão Local abaixo.`);
+        }
       }
-
-      const resultado = await response.json();
-      const textoJson = resultado?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!textoJson) throw new Error('Resposta vazia da IA.');
 
       const parseado = JSON.parse(textoJson);
       const listaAnalisada = parseado.analiseMaterias || [];
@@ -300,7 +422,7 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
       setModalIaAberto(false);
     } catch (err) {
       console.error('Erro no Raio-X da Banca:', err);
-      setErroIa(err.message || 'Falha ao consultar a IA. Verifique sua conexão e a chave informada.');
+      setErroIa(err.message || 'Falha ao consultar a IA.');
     } finally {
       setAnalisandoIa(false);
     }
@@ -362,20 +484,23 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
               Ciclo de Estudos por Blocos e Incidência
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              Não sabe quantas questões caem por matéria? Informe apenas o total de Básicas e Específicas que o sistema calcula a divisão proporcional.
+              Informe apenas o total de questões Básicas e Específicas do edital que o sistema calcula a divisão proporcional.
             </p>
           </div>
 
           <button
-            onClick={() => setModalIaAberto(true)}
+            onClick={() => {
+              setErroIa('');
+              setModalIaAberto(true);
+            }}
             className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black px-5 py-3 rounded-xl shadow-lg transition flex items-center gap-2.5 self-start lg:self-auto shrink-0"
           >
             <i className="fa-solid fa-wand-magic-sparkles"></i>
-            <span>Raio-X Histórico da Banca (IA)</span>
+            <span>Raio-X Histórico da Banca</span>
           </button>
         </div>
 
-        {/* Configuração Macro dos Blocos do Edital (Básicos vs Específicos) */}
+        {/* Configuração Macro dos Blocos do Edital */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 bg-gray-50 dark:bg-gray-900 p-4 rounded-xl border dark:border-gray-700">
           <div>
             <label className="block text-[10px] font-black uppercase text-gray-400">
@@ -506,7 +631,7 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
                 2. Raio-X Histórico da Banca
               </span>
               <p className="text-gray-500 dark:text-gray-400">
-                Clique no botão roxo <b>Raio-X Histórico da Banca</b>, digite a banca (ex: Vunesp) e o cargo (ex: Analista de Sistemas - TRF 3). A IA analisa provas anteriores e aponta a incidência e os tópicos mais cobrados.
+                Clique em <b>Raio-X Histórico da Banca</b> para classificar automaticamente suas matérias (via IA ou via Motor Estatístico Local instantâneo sem precisar de chave).
               </p>
             </div>
             <div>
@@ -601,7 +726,6 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
                       )}
                     </p>
 
-                    {/* Resumo e Tópicos Quentes retornados pelo Raio-X da Banca */}
                     {m.resumoCobranca && (
                       <p className="mt-2 text-[11px] text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 p-2 rounded-lg border border-indigo-100 dark:border-indigo-900/50">
                         <i className="fa-solid fa-magnifying-glass-chart mr-1"></i>
@@ -612,7 +736,7 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
                     {Array.isArray(m.topicosQuentes) && m.topicosQuentes.length > 0 && (
                       <div className="mt-2">
                         <span className="block text-[10px] font-black uppercase text-orange-500 mb-1">
-                          🔥 Assuntos Mais Cobrados ({banca}):
+                          🔥 Assuntos Prioritários ({banca}):
                         </span>
                         <div className="flex flex-wrap gap-1">
                           {m.topicosQuentes.map((topico, i) => (
@@ -781,9 +905,9 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
         )}
       </div>
 
-      {/* MODAL: RAIO-X HISTÓRICO DA BANCA COM IA */}
+      {/* MODAL: RAIO-X HISTÓRICO DA BANCA (COM GROQ + GEMINI + MOTOR LOCAL SEM CHAVE) */}
       {modalIaAberto && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4 animate-fade-in">
             <div className="flex justify-between items-center border-b dark:border-gray-700 pb-3">
               <div>
@@ -811,7 +935,7 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Vunesp, Cebraspe, FGV, FCC"
+                    placeholder="Ex: Vunesp, Cebraspe, FGV"
                     value={banca}
                     onChange={(e) => setBanca(e.target.value)}
                     className="w-full p-3 rounded-xl bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 font-bold dark:text-white text-sm"
@@ -833,30 +957,90 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
                 </div>
               </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase">
-                    Chave da API Google Gemini (Gratuita)
-                  </label>
-                  <a
-                    href="https://aistudio.google.com/app/apikey"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-bold text-indigo-500 hover:underline"
-                  >
-                    Gerar chave grátis no Google AI Studio ↗
-                  </a>
+              {/* Opção 1: Sem precisar de chave de API */}
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3">
+                <div>
+                  <span className="block text-xs font-black text-emerald-500 uppercase">
+                    ⚡ Sem Chave de API (Recomendado / Instantâneo)
+                  </span>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-300">
+                    Classifica Básicas vs Específicas, calcula questões pelo tamanho do edital e destaca tópicos prioritários da {banca || 'banca'} localmente.
+                  </span>
                 </div>
-                <input
-                  type="password"
-                  placeholder="AIzaSy..."
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  className="w-full p-3 rounded-xl bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 font-mono text-xs dark:text-white"
-                />
-                <p className="text-[11px] text-gray-400 mt-1">
-                  A chave fica salva apenas no seu navegador e analisa todas as suas matérias e tópicos do edital comparando com provas anteriores da {banca || 'banca'}.
-                </p>
+                <button
+                  type="button"
+                  onClick={executarRaioXLocalSemChave}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-4 py-2.5 rounded-xl shrink-0 shadow transition"
+                >
+                  Calibrar Agora
+                </button>
+              </div>
+
+              {/* Opção 2: Com IA Externa (Groq ou Gemini) */}
+              <div className="pt-2 border-t dark:border-gray-700 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-400 uppercase">
+                    Ou usar IA na Nuvem:
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setProvedorIa('groq')}
+                      className={`text-xs font-black px-3 py-1 rounded-lg border transition ${
+                        provedorIa === 'groq'
+                          ? 'bg-indigo-600 border-indigo-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-900 border-gray-700 text-gray-400'
+                      }`}
+                    >
+                      Groq / Llama 3.3 (Grátis e Sem Erro)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProvedorIa('gemini')}
+                      className={`text-xs font-black px-3 py-1 rounded-lg border transition ${
+                        provedorIa === 'gemini'
+                          ? 'bg-indigo-600 border-indigo-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-900 border-gray-700 text-gray-400'
+                      }`}
+                    >
+                      Google Gemini
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[11px] font-bold text-gray-400">
+                      {provedorIa === 'groq' ? 'Chave da API Groq (gsk_...)' : 'Chave da API Gemini'}
+                    </span>
+                    {provedorIa === 'groq' ? (
+                      <a
+                        href="https://console.groq.com/keys"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-bold text-indigo-400 hover:underline"
+                      >
+                        Pegar chave grátis em console.groq.com/keys ↗
+                      </a>
+                    ) : (
+                      <a
+                        href="https://aistudio.google.com/app/apikey"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-bold text-indigo-400 hover:underline"
+                      >
+                        Abrir Google AI Studio ↗
+                      </a>
+                    )}
+                  </div>
+                  <input
+                    type="password"
+                    placeholder={provedorIa === 'groq' ? 'gsk_...' : 'Cole sua chave aqui...'}
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 font-mono text-xs dark:text-white"
+                  />
+                </div>
               </div>
 
               {erroIa && (
@@ -871,22 +1055,22 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
                   onClick={() => setModalIaAberto(false)}
                   className="px-4 py-2.5 rounded-xl font-bold text-gray-500"
                 >
-                  Cancelar
+                  Fechar
                 </button>
                 <button
                   type="submit"
                   disabled={analisandoIa}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black px-6 py-2.5 rounded-xl shadow-lg transition disabled:opacity-50 flex items-center gap-2"
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black px-5 py-2.5 rounded-xl shadow-lg transition disabled:opacity-50 flex items-center gap-2 text-xs"
                 >
                   {analisandoIa ? (
                     <>
                       <i className="fa-solid fa-spinner fa-spin"></i>
-                      Analisando Histórico da {banca}...
+                      Analisando via IA...
                     </>
                   ) : (
                     <>
                       <i className="fa-solid fa-bolt"></i>
-                      Analisar Incidências e Tópicos Quentes
+                      Analisar com Chave de API
                     </>
                   )}
                 </button>
