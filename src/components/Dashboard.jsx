@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 
+const STORAGE_TIMER_KEY = 'estudopro_timer_ativo_v1';
+const OPCOES_CICLOS_PADRAO = [
+  { dias: 1, label: '24h (1d)' },
+  { dias: 3, label: '3 dias' },
+  { dias: 7, label: '7 dias' },
+  { dias: 15, label: '15 dias' },
+  { dias: 30, label: '30 dias' },
+  { dias: 60, label: '60 dias' }
+];
+
 export default function Dashboard() {
   const { dadosEstudo, salvarDados } = useData();
 
@@ -9,11 +19,9 @@ export default function Dashboard() {
   const [nomeProvaInput, setNomeProvaInput] = useState('');
   const [dataProvaInput, setDataProvaInput] = useState('');
 
-  // Estados do Motor de Estudo
+  // Estados do Motor de Estudo (Carregados inicialmente do localStorage para sobreviver ao F5)
   const [materiaSelecionada, setMateriaSelecionada] = useState('');
   const [modoTimer, setModoTimer] = useState('pomodoro'); // 'pomodoro' | 'cronometro' | 'manual'
-  
-  // Pomodoro e Cronômetro baseados em Timestamp (Date.now) para não travar em 2º plano
   const [focoMinutos, setFocoMinutos] = useState(25);
   const [pausaMinutos, setPausaMinutos] = useState(5);
   const [emPausa, setEmPausa] = useState(false);
@@ -21,32 +29,99 @@ export default function Dashboard() {
   const [segundosRestantes, setSegundosRestantes] = useState(25 * 60);
   const [segundosDecorridos, setSegundosDecorridos] = useState(0);
   const [minutosManuais, setMinutosManuais] = useState('');
+  const [timerHidratado, setTimerHidratado] = useState(false);
 
   const alvoTimestampRef = useRef(null);
   const inicioTimestampRef = useRef(null);
   const acumuladoSegundosRef = useRef(0);
 
-  // Estados do NOVO Modal de Fechamento de Sessão
+  // Estados do Modal de Fechamento de Sessão
   const [modalSalvarAberto, setModalSalvarAberto] = useState(false);
   const [sessaoPendente, setSessaoPendente] = useState({ minutos: 0, origemPomodoro: false });
   const [topicoEstudado, setTopicoEstudado] = useState('');
   const [paginasSessao, setPaginasSessao] = useState('');
   const [acertosSessao, setAcertosSessao] = useState('');
   const [errosSessao, setErrosSessao] = useState('');
+  
+  // Estados de Revisão Personalizável no Modal
   const [agendarRevisao, setAgendarRevisao] = useState(true);
+  const [ciclosEscolhidos, setCiclosEscolhidos] = useState([1, 7, 15, 30]);
+  const [diaCustomInput, setDiaCustomInput] = useState('');
   const [marcarTopicoConcluido, setMarcarTopicoConcluido] = useState(false);
+  const [abaterBlocoPlanejamento, setAbaterBlocoPlanejamento] = useState(true);
 
   const materias = dadosEstudo?.materias || [];
   const concursoAtual = dadosEstudo?.concursos?.[0] || { nome: 'Meu Edital', data: '' };
 
-  // Sincroniza timer quando o usuário altera os minutos de foco
+  // 1. HIDRATAÇÃO DO TIMER AO ABRIR OU DAR REFRESH (F5)
   useEffect(() => {
-    if (!rodando && modoTimer === 'pomodoro') {
-      setSegundosRestantes((emPausa ? pausaMinutos : focoMinutos) * 60);
-    }
-  }, [focoMinutos, pausaMinutos, emPausa, modoTimer, rodando]);
+    try {
+      const salvoRaw = localStorage.getItem(STORAGE_TIMER_KEY);
+      if (salvoRaw) {
+        const salvo = JSON.parse(salvoRaw);
+        if (salvo.materiaSelecionada) setMateriaSelecionada(salvo.materiaSelecionada);
+        if (salvo.modoTimer) setModoTimer(salvo.modoTimer);
+        if (salvo.focoMinutos) setFocoMinutos(salvo.focoMinutos);
+        if (salvo.pausaMinutos) setPausaMinutos(salvo.pausaMinutos);
+        if (salvo.emPausa !== undefined) setEmPausa(salvo.emPausa);
 
-  // Loop de atualização com Date.now()
+        acumuladoSegundosRef.current = salvo.acumuladoSegundos || 0;
+
+        if (salvo.rodando) {
+          const agora = Date.now();
+          if (salvo.modoTimer === 'pomodoro' && salvo.alvoTimestamp) {
+            alvoTimestampRef.current = salvo.alvoTimestamp;
+            const diff = Math.max(0, Math.round((salvo.alvoTimestamp - agora) / 1000));
+            setSegundosRestantes(diff);
+            setRodando(true);
+          } else if (salvo.modoTimer === 'cronometro' && salvo.inicioTimestamp) {
+            inicioTimestampRef.current = salvo.inicioTimestamp;
+            const passados = Math.floor((agora - salvo.inicioTimestamp) / 1000) + (salvo.acumuladoSegundos || 0);
+            setSegundosDecorridos(passados);
+            setRodando(true);
+          }
+        } else {
+          if (typeof salvo.segundosRestantes === 'number') setSegundosRestantes(salvo.segundosRestantes);
+          if (typeof salvo.segundosDecorridos === 'number') setSegundosDecorridos(salvo.segundosDecorridos);
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao restaurar timer do localStorage:', e);
+    } finally {
+      setTimerHidratado(true);
+    }
+  }, []);
+
+  // 2. SALVAMENTO AUTOMÁTICO DO ESTADO DO TIMER NO LOCALSTORAGE
+  useEffect(() => {
+    if (!timerHidratado) return;
+    const estadoParaSalvar = {
+      materiaSelecionada,
+      modoTimer,
+      focoMinutos,
+      pausaMinutos,
+      emPausa,
+      rodando,
+      segundosRestantes,
+      segundosDecorridos,
+      alvoTimestamp: alvoTimestampRef.current,
+      inicioTimestamp: inicioTimestampRef.current,
+      acumuladoSegundos: acumuladoSegundosRef.current
+    };
+    localStorage.setItem(STORAGE_TIMER_KEY, JSON.stringify(estadoParaSalvar));
+  }, [
+    timerHidratado,
+    materiaSelecionada,
+    modoTimer,
+    focoMinutos,
+    pausaMinutos,
+    emPausa,
+    rodando,
+    segundosRestantes,
+    segundosDecorridos
+  ]);
+
+  // 3. LOOP DO RELÓGIO BASEADO EM TIMESTAMP REAL (Date.now)
   useEffect(() => {
     if (!rodando) return;
 
@@ -77,6 +152,22 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [rodando, modoTimer, emPausa, focoMinutos, pausaMinutos]);
 
+  function alterarFocoMinutos(novoValor) {
+    const val = Math.max(1, Number(novoValor) || 25);
+    setFocoMinutos(val);
+    if (!rodando && !emPausa) {
+      setSegundosRestantes(val * 60);
+    }
+  }
+
+  function alterarPausaMinutos(novoValor) {
+    const val = Math.max(1, Number(novoValor) || 5);
+    setPausaMinutos(val);
+    if (!rodando && emPausa) {
+      setSegundosRestantes(val * 60);
+    }
+  }
+
   function iniciarOuPausar() {
     if (!materiaSelecionada) {
       alert('Selecione uma matéria antes de iniciar!');
@@ -102,12 +193,15 @@ export default function Dashboard() {
   function resetarTimer() {
     setRodando(false);
     acumuladoSegundosRef.current = 0;
+    alvoTimestampRef.current = null;
+    inicioTimestampRef.current = null;
     if (modoTimer === 'pomodoro') {
       setEmPausa(false);
       setSegundosRestantes(focoMinutos * 60);
     } else {
       setSegundosDecorridos(0);
     }
+    localStorage.removeItem(STORAGE_TIMER_KEY);
   }
 
   function abrirModalFechamento(minutos, veioDoPomodoro = false) {
@@ -115,6 +209,11 @@ export default function Dashboard() {
       alert('Selecione uma matéria primeiro!');
       return;
     }
+    setRodando(false);
+    if (modoTimer === 'cronometro') {
+      acumuladoSegundosRef.current = segundosDecorridos;
+    }
+
     const minValidos = Math.max(1, Math.round(minutos));
     setSessaoPendente({ minutos: minValidos, origemPomodoro: veioDoPomodoro });
     setTopicoEstudado('');
@@ -122,15 +221,36 @@ export default function Dashboard() {
     setAcertosSessao('');
     setErrosSessao('');
     setAgendarRevisao(true);
+    setCiclosEscolhidos(dadosEstudo?.intervalosRevisao || [1, 7, 15, 30]);
     setMarcarTopicoConcluido(false);
+    setAbaterBlocoPlanejamento(true);
     setModalSalvarAberto(true);
   }
 
+  function toggleCicloRevisao(dias) {
+    if (ciclosEscolhidos.includes(dias)) {
+      setCiclosEscolhidos(ciclosEscolhidos.filter((d) => d !== dias));
+    } else {
+      setCiclosEscolhidos([...ciclosEscolhidos, dias].sort((a, b) => a - b));
+    }
+  }
+
+  function adicionarCicloCustom() {
+    const num = parseInt(diaCustomInput, 10);
+    if (!num || num <= 0 || num > 365) return;
+    if (!ciclosEscolhidos.includes(num)) {
+      setCiclosEscolhidos([...ciclosEscolhidos, num].sort((a, b) => a - b));
+    }
+    setDiaCustomInput('');
+  }
+
   function handleConcluirCronometro() {
-    if (segundosDecorridos < 60 && !window.confirm('Menos de 1 minuto registrado. Deseja salvar como 1 minuto mesmo assim?')) {
+    if (
+      segundosDecorridos < 60 &&
+      !window.confirm('Menos de 1 minuto registrado. Deseja salvar como 1 minuto mesmo assim?')
+    ) {
       return;
     }
-    setRodando(false);
     const min = Math.max(1, Math.round(segundosDecorridos / 60));
     abrirModalFechamento(min, false);
   }
@@ -153,7 +273,7 @@ export default function Dashboard() {
     const erros = parseInt(errosSessao, 10) || 0;
     const hojeStr = new Date().toISOString().split('T')[0];
 
-    // 1. Atualiza a matéria específica
+    // 1. Atualiza a matéria estudada
     const novasMaterias = materias.map((m) => {
       if (m.nome !== materiaSelecionada) return m;
       const novosTopicos = (m.topicos || []).map((t) => {
@@ -182,7 +302,7 @@ export default function Dashboard() {
       erros: diaAtual.erros + erros
     };
 
-    // 3. Atualiza Log de Sessões (historicoEstudos)
+    // 3. Atualiza Log de Sessões
     const novoRegistro = {
       id: Date.now(),
       data: hojeStr,
@@ -195,7 +315,7 @@ export default function Dashboard() {
     };
     const novoHistoricoEstudos = [novoRegistro, ...(dadosEstudo?.historicoEstudos || [])];
 
-    // 4. Calcula Ofensiva (Streak)
+    // 4. Calcula Ofensiva
     const ofensivaAtual = dadosEstudo?.ofensiva || { dias: 0, ultimaData: null };
     let novosDiasOfensiva = ofensivaAtual.dias || 0;
     if (ofensivaAtual.ultimaData !== hojeStr) {
@@ -205,12 +325,11 @@ export default function Dashboard() {
       novosDiasOfensiva = ofensivaAtual.ultimaData === ontemStr ? novosDiasOfensiva + 1 : 1;
     }
 
-    // 5. Agenda Revisões Espaçadas (24h, 7d, 15d, 30d) se marcado
+    // 5. Agenda Revisões Espaçadas conforme os ciclos selecionados no Modal
     let novasRevisoes = [...(dadosEstudo?.revisoes || [])];
-    if (agendarRevisao) {
-      const intervalos = dadosEstudo?.intervalosRevisao || [1, 7, 15, 30];
+    if (agendarRevisao && ciclosEscolhidos.length > 0) {
       const baseDate = new Date();
-      const lotesRevisao = intervalos.map((dias, idx) => {
+      const lotesRevisao = ciclosEscolhidos.map((dias, idx) => {
         const dataRev = new Date(baseDate);
         dataRev.setDate(dataRev.getDate() + dias);
         return {
@@ -225,7 +344,44 @@ export default function Dashboard() {
       novasRevisoes = [...novasRevisoes, ...lotesRevisao];
     }
 
-    // 6. Salva tudo no Firebase via DataContext
+    // 6. Marca Automaticamente os Blocos na Aba de Planejamento
+    const configPlanAtual = dadosEstudo?.configPlanejamento || {
+      horasSemanais: 24,
+      duracaoBlocoMin: 60,
+      blocosConcluidos: {},
+      minutosNoCiclo: {}
+    };
+    const duracaoBloco = Number(configPlanAtual.duracaoBlocoMin) || 60;
+    const novosBlocosConcluidos = { ...(configPlanAtual.blocosConcluidos || {}) };
+    const novosMinutosNoCiclo = { ...(configPlanAtual.minutosNoCiclo || {}) };
+
+    if (abaterBlocoPlanejamento) {
+      const acumuladoAnterior = novosMinutosNoCiclo[materiaSelecionada] || 0;
+      const novoAcumulado = acumuladoAnterior + min;
+      novosMinutosNoCiclo[materiaSelecionada] = novoAcumulado;
+
+      // Calcula quantos blocos inteiros essa matéria já conquistou pela soma de minutos
+      const qtdBlocosPeloTempo = Math.floor(novoAcumulado / duracaoBloco);
+
+      if (qtdBlocosPeloTempo > 0) {
+        for (let i = 0; i < qtdBlocosPeloTempo; i++) {
+          novosBlocosConcluidos[`${materiaSelecionada}_${i}`] = true;
+        }
+      } else {
+        // Se a sessão foi menor que 1 bloco completo mas o usuário pediu para abater,
+        // marca o primeiro bloco livre daquela matéria
+        for (let i = 0; i < 50; i++) {
+          const chave = `${materiaSelecionada}_${i}`;
+          if (!novosBlocosConcluidos[chave]) {
+            novosBlocosConcluidos[chave] = true;
+            novosMinutosNoCiclo[materiaSelecionada] = (i + 1) * duracaoBloco;
+            break;
+          }
+        }
+      }
+    }
+
+    // 7. Salva tudo no Firestore
     await salvarDados({
       ...dadosEstudo,
       tempoTotal: (dadosEstudo?.tempoTotal || 0) + min,
@@ -239,10 +395,14 @@ export default function Dashboard() {
       materias: novasMaterias,
       historicoDias: histDias,
       historicoEstudos: novoHistoricoEstudos,
-      revisoes: novasRevisoes
+      revisoes: novasRevisoes,
+      configPlanejamento: {
+        ...configPlanAtual,
+        blocosConcluidos: novosBlocosConcluidos,
+        minutosNoCiclo: novosMinutosNoCiclo
+      }
     });
 
-    // Limpa estados temporários
     setModalSalvarAberto(false);
     setMinutosManuais('');
     resetarTimer();
@@ -258,7 +418,6 @@ export default function Dashboard() {
     setModalProvaAberto(false);
   }
 
-  // Cálculos de exibição
   const tempoTotalMin = dadosEstudo?.tempoTotal || 0;
   const horasTotais = Math.floor(tempoTotalMin / 60);
   const minutosTotais = tempoTotalMin % 60;
@@ -269,8 +428,7 @@ export default function Dashboard() {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const dataAlvo = new Date(concursoAtual.data + 'T00:00:00');
-    const diff = Math.ceil((dataAlvo - hoje) / (1000 * 60 * 60 * 24));
-    return diff;
+    return Math.ceil((dataAlvo - hoje) / (1000 * 60 * 60 * 24));
   };
 
   const diasRestantes = calcularDiasRestantes();
@@ -358,6 +516,13 @@ export default function Dashboard() {
 
       {/* Central de Estudo (Pomodoro / Cronômetro / Manual) */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border dark:border-gray-700 shadow-sm max-w-2xl mx-auto text-center">
+        {rodando && (
+          <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-xs font-black animate-pulse">
+            <i className="fa-solid fa-shield-halved"></i>
+            Sessão protegida contra atualização de página (F5)
+          </div>
+        )}
+
         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
           O que você vai estudar agora?
         </label>
@@ -378,6 +543,9 @@ export default function Dashboard() {
             <button
               key={modo}
               onClick={() => {
+                if (rodando && !window.confirm('O timer está rodando. Deseja trocar de modo e reiniciar a contagem atual?')) {
+                  return;
+                }
                 resetarTimer();
                 setModoTimer(modo);
               }}
@@ -403,7 +571,7 @@ export default function Dashboard() {
                   max="180"
                   disabled={rodando}
                   value={focoMinutos}
-                  onChange={(e) => setFocoMinutos(Number(e.target.value) || 25)}
+                  onChange={(e) => alterarFocoMinutos(e.target.value)}
                   className="w-14 p-1.5 text-center rounded-lg bg-gray-100 dark:bg-gray-900 dark:text-white border dark:border-gray-700"
                 />
               </div>
@@ -415,7 +583,7 @@ export default function Dashboard() {
                   max="60"
                   disabled={rodando}
                   value={pausaMinutos}
-                  onChange={(e) => setPausaMinutos(Number(e.target.value) || 5)}
+                  onChange={(e) => alterarPausaMinutos(e.target.value)}
                   className="w-14 p-1.5 text-center rounded-lg bg-gray-100 dark:bg-gray-900 dark:text-white border dark:border-gray-700"
                 />
               </div>
@@ -425,7 +593,7 @@ export default function Dashboard() {
               {formatarRelogio(segundosRestantes)}
             </div>
 
-            <div className="flex justify-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               <button
                 onClick={iniciarOuPausar}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 py-3 rounded-xl shadow transition"
@@ -433,7 +601,7 @@ export default function Dashboard() {
                 {rodando ? 'Pausar' : 'Iniciar'}
               </button>
               <button
-                onClick={() => abrirModalFechamento(focoMinutos - Math.floor(segundosRestantes / 60), true)}
+                onClick={() => abrirModalFechamento(Math.max(1, focoMinutos - Math.floor(segundosRestantes / 60)), true)}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-6 py-3 rounded-xl shadow transition"
                 title="Finalizar e registrar agora"
               >
@@ -442,6 +610,7 @@ export default function Dashboard() {
               <button
                 onClick={resetarTimer}
                 className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold px-4 py-3 rounded-xl transition"
+                title="Zerar relógio"
               >
                 <i className="fa-solid fa-rotate-right"></i>
               </button>
@@ -454,7 +623,7 @@ export default function Dashboard() {
             <div className="text-7xl font-black text-emerald-500 my-6 font-mono">
               {formatarRelogio(segundosDecorridos)}
             </div>
-            <div className="flex justify-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               <button
                 onClick={iniciarOuPausar}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 py-3 rounded-xl shadow transition"
@@ -470,6 +639,7 @@ export default function Dashboard() {
               <button
                 onClick={resetarTimer}
                 className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold px-4 py-3 rounded-xl transition"
+                title="Zerar cronômetro"
               >
                 <i className="fa-solid fa-rotate-right"></i>
               </button>
@@ -503,10 +673,10 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* MODAL DE FECHAMENTO DE SESSÃO (Páginas, Questões e Revisão) */}
+      {/* MODAL DE FECHAMENTO DE SESSÃO (Páginas, Questões, Seletor de Revisões e Ciclo) */}
       {modalSalvarAberto && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl my-8 animate-fade-in">
             <div className="flex justify-between items-center border-b dark:border-gray-700 pb-3 mb-4">
               <div>
                 <span className="text-xs font-black uppercase text-indigo-500">Resumo do Estudo</span>
@@ -557,7 +727,7 @@ export default function Dashboard() {
                       type="checkbox"
                       checked={marcarTopicoConcluido}
                       onChange={(e) => setMarcarTopicoConcluido(e.target.checked)}
-                      className="rounded text-emerald-600"
+                      className="rounded accent-emerald-600"
                     />
                     Marcar este tópico como concluído no Meu Edital
                   </label>
@@ -609,21 +779,134 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Opção de Agendar Revisão */}
-              <div className="p-3.5 rounded-xl bg-indigo-50 dark:bg-gray-900 border border-indigo-100 dark:border-gray-700 flex items-center justify-between">
+              {/* Seletor Completo de Revisões */}
+              <div className="p-4 rounded-xl bg-indigo-50/70 dark:bg-gray-900 border border-indigo-100 dark:border-gray-700 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="block text-sm font-black text-indigo-900 dark:text-indigo-300">
+                      Agendar Revisões?
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Escolha em quais dias deseja revisar este conteúdo
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={agendarRevisao}
+                    onChange={(e) => setAgendarRevisao(e.target.checked)}
+                    className="w-5 h-5 accent-indigo-600 rounded cursor-pointer"
+                  />
+                </div>
+
+                {agendarRevisao && (
+                  <div className="space-y-3 pt-2 border-t border-indigo-100 dark:border-gray-800">
+                    {/* Atalhos Rápidos */}
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setCiclosEscolhidos([1, 7, 15, 30])}
+                        className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition"
+                      >
+                        Padrão (1, 7, 15, 30d)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCiclosEscolhidos([1, 3, 7])}
+                        className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition"
+                      >
+                        Reta Final (1, 3, 7d)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCiclosEscolhidos([1])}
+                        className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition"
+                      >
+                        Apenas 24h
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCiclosEscolhidos([7])}
+                        className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition"
+                      >
+                        Apenas 7 dias
+                      </button>
+                    </div>
+
+                    {/* Botões Individuais de Dias */}
+                    <div className="flex flex-wrap gap-2">
+                      {OPCOES_CICLOS_PADRAO.map((item) => {
+                        const ativo = ciclosEscolhidos.includes(item.dias);
+                        return (
+                          <button
+                            key={item.dias}
+                            type="button"
+                            onClick={() => toggleCicloRevisao(item.dias)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-black border transition flex items-center gap-1.5 ${
+                              ativo
+                                ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm'
+                                : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                            }`}
+                          >
+                            {ativo && <i className="fa-solid fa-check text-[10px]"></i>}
+                            {item.label}
+                          </button>
+                        );
+                      })}
+
+                      {/* Mostra também dias personalizados adicionados pelo usuário */}
+                      {ciclosEscolhidos
+                        .filter((d) => !OPCOES_CICLOS_PADRAO.some((o) => o.dias === d))
+                        .map((d) => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => toggleCicloRevisao(d)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-black bg-indigo-600 border border-indigo-500 text-white shadow-sm flex items-center gap-1.5"
+                          >
+                            <i className="fa-solid fa-check text-[10px]"></i>
+                            {d} dias
+                          </button>
+                        ))}
+                    </div>
+
+                    {/* Campo para adicionar dia personalizado */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="365"
+                        placeholder="Outro prazo (em dias)..."
+                        value={diaCustomInput}
+                        onChange={(e) => setDiaCustomInput(e.target.value)}
+                        className="flex-1 p-2 rounded-lg text-xs font-bold bg-white dark:bg-gray-800 border dark:border-gray-700 dark:text-white outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={adicionarCicloCustom}
+                        className="px-3 py-2 rounded-lg text-xs font-black bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-indigo-600 hover:text-white transition"
+                      >
+                        + Adicionar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Opção de Abater Bloco no Ciclo de Planejamento */}
+              <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-gray-900 border border-emerald-200 dark:border-gray-700 flex items-center justify-between">
                 <div>
-                  <span className="block text-sm font-black text-indigo-900 dark:text-indigo-300">
-                    Programar Revisões Automáticas?
+                  <span className="block text-sm font-black text-emerald-900 dark:text-emerald-300">
+                    Marcar Bloco na Aba de Planejamento?
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Cria lembretes de revisão espaçada (1d, 7d, 15d e 30d) para este assunto.
+                    Tica automaticamente o bloco desta matéria no seu Ciclo Semanal
                   </span>
                 </div>
                 <input
                   type="checkbox"
-                  checked={agendarRevisao}
-                  onChange={(e) => setAgendarRevisao(e.target.checked)}
-                  className="w-5 h-5 accent-indigo-600 rounded cursor-pointer"
+                  checked={abaterBlocoPlanejamento}
+                  onChange={(e) => setAbaterBlocoPlanejamento(e.target.checked)}
+                  className="w-5 h-5 accent-emerald-600 rounded cursor-pointer"
                 />
               </div>
 

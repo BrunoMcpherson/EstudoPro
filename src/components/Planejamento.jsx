@@ -2,16 +2,16 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 
 const PESOS_INCIDENCIA = {
-  baixa: { label: 'Baixa (0.8x)', fator: 0.8 },
-  media: { label: 'Média (1.0x)', fator: 1.0 },
-  alta: { label: 'Alta (1.25x)', fator: 1.25 },
-  altissima: { label: 'Altíssima / Core (1.5x)', fator: 1.5 }
+  baixa: { label: 'Pouco Cobrado', fator: 0.8 },
+  media: { label: 'Cobrança Normal', fator: 1.0 },
+  alta: { label: 'Muito Cobrado', fator: 1.25 },
+  altissima: { label: 'Assunto Crítico da Banca', fator: 1.5 }
 };
 
 const PESOS_DOMINIO = {
-  iniciante: { label: 'Iniciante / Base (1.5x)', fator: 1.5 },
-  intermediario: { label: 'Intermediário (1.15x)', fator: 1.15 },
-  avancado: { label: 'Avançado / Manutenção (0.8x)', fator: 0.8 }
+  iniciante: { label: 'Iniciante (Preciso de Base)', fator: 1.5 },
+  intermediario: { label: 'Intermediário (Evoluindo)', fator: 1.15 },
+  avancado: { label: 'Avançado (Só Revisão/Questões)', fator: 0.8 }
 };
 
 export default function Planejamento() {
@@ -21,11 +21,14 @@ export default function Planejamento() {
   const configPlan = dadosEstudo?.configPlanejamento || {
     horasSemanais: 24,
     duracaoBlocoMin: 60,
-    blocosConcluidos: {}
+    blocosConcluidos: {},
+    minutosNoCiclo: {},
+    ocultarTutorial: false
   };
 
   const [horasSemanais, setHorasSemanais] = useState(configPlan.horasSemanais || 24);
   const [duracaoBlocoMin, setDuracaoBlocoMin] = useState(configPlan.duracaoBlocoMin || 60);
+  const [mostrarTutorial, setMostrarTutorial] = useState(!configPlan.ocultarTutorial);
 
   // Calcula domínio sugerido caso o usuário deixe no modo automático
   function obterDominioEfetivo(m) {
@@ -39,9 +42,9 @@ export default function Planejamento() {
     return 'iniciante';
   }
 
-  // Cálculo do IRP (Índice de Relevância e Prioridade) para cada matéria
+  // Cálculo de relevância e prioridade para cada matéria
   const materiasCalculadas = materias.map((m, index) => {
-    const categoria = m.categoria || 'especifico'; // 'basico' | 'especifico'
+    const categoria = m.categoria || 'especifico';
     const pesoProva = Number(m.pesoProva) || 1;
     const qtdQuestoes = Number(m.qtdQuestoes) || 10;
     const incidencia = m.incidenciaBanca || 'media';
@@ -77,12 +80,11 @@ export default function Planejamento() {
       const minutosAlocados = Math.round(horasAlocadas * 60);
       const qtdBlocos = Math.max(1, Math.round(minutosAlocados / duracaoBlocoMin));
 
-      // Classificação Estratégica
-      let estrategia = { label: '⚡ Consolidação', cor: 'text-yellow-500 bg-yellow-500/10' };
+      let estrategia = { label: '⚡ Ritmo Constante', cor: 'text-yellow-500 bg-yellow-500/10' };
       if (percentual >= 14 && m.dominioKey === 'iniciante') {
-        estrategia = { label: '🔥 Ataque Máximo', cor: 'text-red-500 bg-red-500/10' };
+        estrategia = { label: '🔥 Foco Máximo', cor: 'text-red-500 bg-red-500/10' };
       } else if (m.dominioKey === 'avancado') {
-        estrategia = { label: '🔄 Manutenção / Questões', cor: 'text-emerald-500 bg-emerald-500/10' };
+        estrategia = { label: '🔄 Manutenção', cor: 'text-emerald-500 bg-emerald-500/10' };
       } else if (percentual >= 12) {
         estrategia = { label: '🎯 Alta Prioridade', cor: 'text-indigo-400 bg-indigo-500/10' };
       }
@@ -120,6 +122,18 @@ export default function Planejamento() {
     });
   }
 
+  async function alternarVisibilidadeTutorial() {
+    const novoEstado = !mostrarTutorial;
+    setMostrarTutorial(novoEstado);
+    await salvarDados({
+      ...dadosEstudo,
+      configPlanejamento: {
+        ...configPlan,
+        ocultarTutorial: !novoEstado
+      }
+    });
+  }
+
   async function toggleBlocoCiclo(nomeMateria, idxBloco) {
     const chave = `${nomeMateria}_${idxBloco}`;
     const blocosAtuais = { ...(configPlan.blocosConcluidos || {}) };
@@ -137,11 +151,13 @@ export default function Planejamento() {
   }
 
   async function reiniciarCicloCheckboxes() {
+    if (!window.confirm('Deseja desmarcar todos os blocos para iniciar uma nova semana/giro de estudos?')) return;
     await salvarDados({
       ...dadosEstudo,
       configPlanejamento: {
         ...configPlan,
-        blocosConcluidos: {}
+        blocosConcluidos: {},
+        minutosNoCiclo: {}
       }
     });
   }
@@ -151,20 +167,40 @@ export default function Planejamento() {
     .reduce((acc, m) => acc + m.percentual, 0);
   const percEspecificos = 100 - percBasicos;
 
+  // Contagem geral de blocos do ciclo para barra de progresso da semana
+  const totalBlocosSemana = planejamentoFinal.reduce((acc, m) => acc + m.qtdBlocos, 0);
+  const totalBlocosFeitos = planejamentoFinal.reduce((acc, m) => {
+    let feitos = 0;
+    for (let i = 0; i < m.qtdBlocos; i++) {
+      if (configPlan.blocosConcluidos?.[`${m.nome}_${i}`]) feitos++;
+    }
+    return acc + feitos;
+  }, 0);
+  const progressoCicloPerc = totalBlocosSemana > 0 ? Math.round((totalBlocosFeitos / totalBlocosSemana) * 100) : 0;
+
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Cabeçalho e Parâmetros da Semana */}
+      {/* Cabeçalho Principal */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border dark:border-gray-700 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <span className="text-xs font-black uppercase text-indigo-500">
-              Algoritmo de Priorização (IRP)
-            </span>
-            <h2 className="text-2xl font-black text-gray-800 dark:text-white">
-              Planejamento Estratégico e Ciclo de Estudos
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase text-indigo-500">
+                Ciclo Inteligente de Estudos
+              </span>
+              <button
+                onClick={alternarVisibilidadeTutorial}
+                className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-200 transition flex items-center gap-1"
+              >
+                <i className="fa-solid fa-circle-question"></i>
+                {mostrarTutorial ? 'Ocultar Tutorial' : 'Como usar? (Tutorial)'}
+              </button>
+            </div>
+            <h2 className="text-2xl font-black text-gray-800 dark:text-white mt-1">
+              Planejamento Estratégico por Relevância
             </h2>
             <p className="text-xs text-gray-400 mt-1">
-              Calibra sua carga horária cruzando Peso da Prova, Questões, Incidência da Banca e seu Nível atual.
+              Distribui suas horas da semana priorizando as matérias que valem mais pontos e onde você mais precisa evoluir.
             </p>
           </div>
 
@@ -185,7 +221,7 @@ export default function Planejamento() {
 
             <div>
               <label className="block text-[10px] font-black uppercase text-gray-400">
-                Bloco do Ciclo
+                Tamanho do Bloco
               </label>
               <select
                 value={duracaoBlocoMin}
@@ -200,6 +236,62 @@ export default function Planejamento() {
             </div>
           </div>
         </div>
+
+        {/* TUTORIAL PASSO A PASSO PARA O USUÁRIO */}
+        {mostrarTutorial && (
+          <div className="mt-6 p-5 rounded-2xl bg-indigo-50/70 dark:bg-gray-900/90 border border-indigo-100 dark:border-indigo-900/50 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-indigo-900 dark:text-indigo-300 flex items-center gap-2">
+                <i className="fa-solid fa-wand-magic-sparkles text-indigo-500"></i>
+                Como funciona o seu Planejamento Automático (3 Passos Simples)
+              </h3>
+              <button
+                onClick={alternarVisibilidadeTutorial}
+                className="text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                Entendi, fechar guia ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border dark:border-gray-700">
+                <span className="inline-block px-2 py-0.5 rounded bg-indigo-600 text-white font-black text-[10px] mb-2">
+                  PASSO 1 • SUA ROTINA
+                </span>
+                <h4 className="font-black text-gray-800 dark:text-white mb-1">
+                  Defina suas Horas e Blocos
+                </h4>
+                <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
+                  No canto superior direito, informe quantas <b>Horas por Semana</b> você tem disponível (ex: 24h) e a duração de cada <b>Bloco de Estudo</b> (ex: 1h por matéria).
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border dark:border-gray-700">
+                <span className="inline-block px-2 py-0.5 rounded bg-purple-600 text-white font-black text-[10px] mb-2">
+                  PASSO 2 • PESO DO EDITAL
+                </span>
+                <h4 className="font-black text-gray-800 dark:text-white mb-1">
+                  Preencha a Tabela Abaixo
+                </h4>
+                <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
+                  Informe quantas <b>Questões</b> caem na prova e o <b>Peso</b> delas no edital. Se deixar o seu nível em <b>🤖 Automático</b>, o sistema usa sua taxa de acertos para dar mais tempo às matérias em que você tem mais dificuldade!
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border dark:border-gray-700">
+                <span className="inline-block px-2 py-0.5 rounded bg-emerald-600 text-white font-black text-[10px] mb-2">
+                  PASSO 3 • ESTUDO AUTOMÁTICO
+                </span>
+                <h4 className="font-black text-gray-800 dark:text-white mb-1">
+                  Siga os Blocos da Semana
+                </h4>
+                <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
+                  No quadro <b>Seu Ciclo Prático</b> (no final da página), o sistema cria os bloquinhos ideais para cada matéria. Sempre que você salvar um estudo lá no <b>Dashboard</b>, os blocos daqui são <b>marcados automaticamente</b>!
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Barra de Equilíbrio Básicos vs Específicos */}
         {materias.length > 0 && (
@@ -220,11 +312,102 @@ export default function Planejamento() {
         )}
       </div>
 
+      {/* Quadro Interativo do Ciclo de Estudos (Colocado em destaque para facilitar o uso diário) */}
+      {planejamentoFinal.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border dark:border-gray-700 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div>
+              <h3 className="text-lg font-black text-gray-800 dark:text-white flex items-center gap-2">
+                <span>1. Seu Ciclo Prático de Blocos ({duracaoBlocoMin} min cada)</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-black">
+                  {totalBlocosFeitos}/{totalBlocosSemana} concluídos ({progressoCicloPerc}%)
+                </span>
+              </h3>
+              <p className="text-xs text-gray-400">
+                Os blocos são ticados automaticamente ao concluir estudos no Dashboard (ou você pode clicar neles manualmente).
+              </p>
+            </div>
+            <button
+              onClick={reiniciarCicloCheckboxes}
+              className="text-xs font-black text-indigo-500 hover:bg-indigo-50 dark:hover:bg-gray-700 px-3 py-2 rounded-xl border border-indigo-500/30 transition flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <i className="fa-solid fa-rotate"></i> Reiniciar Semana / Ciclo
+            </button>
+          </div>
+
+          {/* Barra de Progresso Geral do Ciclo */}
+          <div className="w-full h-2.5 bg-gray-100 dark:bg-gray-900 rounded-full overflow-hidden mb-6">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+              style={{ width: `${progressoCicloPerc}%` }}
+            ></div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {planejamentoFinal.map((m) => {
+              const blocosArray = Array.from({ length: m.qtdBlocos });
+              const minAcumulados = configPlan.minutosNoCiclo?.[m.nome] || 0;
+
+              return (
+                <div
+                  key={m.indexOriginal}
+                  className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex justify-between items-start gap-2 mb-1">
+                      <h4 className="font-black text-sm text-gray-800 dark:text-white">{m.nome}</h4>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 ${m.estrategia.cor}`}>
+                        {m.estrategia.label}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-400 mb-3">
+                      Meta: <b>{m.horasAlocadas.toFixed(1)}h/sem</b> ({m.qtdBlocos} blocos)
+                      {minAcumulados > 0 && (
+                        <span className="text-emerald-500 font-bold ml-1">
+                          • {minAcumulados} min feitos no ciclo
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-2 border-t dark:border-gray-800">
+                    {blocosArray.map((_, idxBloco) => {
+                      const chave = `${m.nome}_${idxBloco}`;
+                      const feito = !!configPlan.blocosConcluidos?.[chave];
+                      return (
+                        <button
+                          key={idxBloco}
+                          onClick={() => toggleBlocoCiclo(m.nome, idxBloco)}
+                          title={feito ? 'Bloco concluído! Clique para desmarcar' : 'Clique para marcar manualmente'}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-black border transition flex items-center gap-1.5 ${
+                            feito
+                              ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm'
+                              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-500'
+                          }`}
+                        >
+                          <i className={`fa-solid ${feito ? 'fa-check' : 'fa-clock'}`}></i>
+                          {duracaoBlocoMin}m
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Tabela de Calibragem de Pesos por Matéria */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border dark:border-gray-700 shadow-sm">
-        <h3 className="text-lg font-black text-gray-800 dark:text-white mb-4">
-          1. Matriz de Pesos e Diagnóstico do Edital
-        </h3>
+        <div className="mb-4">
+          <h3 className="text-lg font-black text-gray-800 dark:text-white">
+            2. Configurar Pesos das Matérias no Edital
+          </h3>
+          <p className="text-xs text-gray-400">
+            Ajuste os dados do seu edital abaixo para recalcular automaticamente a quantidade de blocos de cada matéria acima.
+          </p>
+        </div>
 
         {materias.length === 0 ? (
           <p className="text-sm text-gray-400">
@@ -236,13 +419,12 @@ export default function Planejamento() {
               <thead>
                 <tr className="border-b dark:border-gray-700 text-[11px] font-black text-gray-400 uppercase">
                   <th className="py-3 px-3">Disciplina</th>
-                  <th className="py-3 px-3">Bloco do Edital</th>
-                  <th className="py-3 px-3 text-center">Questões</th>
-                  <th className="py-3 px-3 text-center">Peso</th>
-                  <th className="py-3 px-3">Incidência na Banca</th>
-                  <th className="py-3 px-3">Seu Domínio</th>
-                  <th className="py-3 px-3 text-center">Prioridade</th>
-                  <th className="py-3 px-3 text-right">Carga / Sem.</th>
+                  <th className="py-3 px-3">Tipo no Edital</th>
+                  <th className="py-3 px-3 text-center">Nº Questões</th>
+                  <th className="py-3 px-3 text-center">Peso da Questão</th>
+                  <th className="py-3 px-3">Importância na Banca</th>
+                  <th className="py-3 px-3">Seu Nível Atual</th>
+                  <th className="py-3 px-3 text-right">Tempo Sugerido</th>
                 </tr>
               </thead>
               <tbody className="divide-y dark:divide-gray-700 text-xs font-bold">
@@ -258,8 +440,8 @@ export default function Planejamento() {
                         onChange={(e) => atualizarParametroMateria(m.indexOriginal, 'categoria', e.target.value)}
                         className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 dark:text-white"
                       >
-                        <option value="basico">📘 Básico (1.0x)</option>
-                        <option value="especifico">🎯 Específico (1.2x)</option>
+                        <option value="basico">📘 Conhec. Básico</option>
+                        <option value="especifico">🎯 Conhec. Específico (+20%)</option>
                       </select>
                     </td>
 
@@ -270,7 +452,7 @@ export default function Planejamento() {
                         max="120"
                         value={m.qtdQuestoes}
                         onChange={(e) => atualizarParametroMateria(m.indexOriginal, 'qtdQuestoes', Number(e.target.value))}
-                        className="w-14 p-1.5 text-center rounded-lg bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 dark:text-white"
+                        className="w-16 p-1.5 text-center rounded-lg bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 dark:text-white"
                       />
                     </td>
 
@@ -282,7 +464,7 @@ export default function Planejamento() {
                         step="0.5"
                         value={m.pesoProva}
                         onChange={(e) => atualizarParametroMateria(m.indexOriginal, 'pesoProva', Number(e.target.value))}
-                        className="w-14 p-1.5 text-center rounded-lg bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 dark:text-white"
+                        className="w-16 p-1.5 text-center rounded-lg bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 dark:text-white"
                       />
                     </td>
 
@@ -304,21 +486,17 @@ export default function Planejamento() {
                         onChange={(e) => atualizarParametroMateria(m.indexOriginal, 'nivelDominio', e.target.value)}
                         className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 dark:text-white"
                       >
-                        <option value="auto">🤖 Auto ({PESOS_DOMINIO[m.dominioKey]?.label.split(' ')[0]})</option>
+                        <option value="auto">
+                          🤖 Automático ({PESOS_DOMINIO[m.dominioKey]?.label.split(' ')[0]})
+                        </option>
                         {Object.entries(PESOS_DOMINIO).map(([k, val]) => (
                           <option key={k} value={k}>{val.label}</option>
                         ))}
                       </select>
                     </td>
 
-                    <td className="py-3 px-3 text-center">
-                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-black ${m.estrategia.cor}`}>
-                        {m.estrategia.label}
-                      </span>
-                    </td>
-
                     <td className="py-3 px-3 text-right font-black text-indigo-600 dark:text-indigo-400 text-sm">
-                      {m.horasAlocadas.toFixed(1)}h ({Math.round(m.percentual)}%)
+                      {m.horasAlocadas.toFixed(1)}h ({m.qtdBlocos} {m.qtdBlocos === 1 ? 'bloco' : 'blocos'})
                     </td>
                   </tr>
                 ))}
@@ -327,73 +505,6 @@ export default function Planejamento() {
           </div>
         )}
       </div>
-
-      {/* Quadro Interativo do Ciclo de Estudos */}
-      {planejamentoFinal.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border dark:border-gray-700 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-black text-gray-800 dark:text-white">
-                2. Seu Ciclo Prático de Blocos ({duracaoBlocoMin} min por bloco)
-              </h3>
-              <p className="text-xs text-gray-400">
-                Marque os blocos conforme for concluindo ao longo da semana para manter o giro equilibrado do edital.
-              </p>
-            </div>
-            <button
-              onClick={reiniciarCicloCheckboxes}
-              className="text-xs font-black text-indigo-500 hover:bg-indigo-50 dark:hover:bg-gray-700 px-3 py-2 rounded-xl transition flex items-center gap-1.5"
-            >
-              <i className="fa-solid fa-rotate"></i> Reiniciar Giro do Ciclo
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {planejamentoFinal.map((m) => {
-              const blocosArray = Array.from({ length: m.qtdBlocos });
-              return (
-                <div
-                  key={m.indexOriginal}
-                  className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex justify-between items-start gap-2 mb-2">
-                      <h4 className="font-black text-sm text-gray-800 dark:text-white">{m.nome}</h4>
-                      <span className="text-[11px] font-black text-indigo-500 shrink-0">
-                        {m.qtdBlocos} {m.qtdBlocos === 1 ? 'bloco' : 'blocos'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-gray-400 mb-3">
-                      Meta semanal: <b>{m.horasAlocadas.toFixed(1)}h</b> • Pontos em jogo: <b>{m.pontosBrutos} pts</b>
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 pt-2 border-t dark:border-gray-800">
-                    {blocosArray.map((_, idxBloco) => {
-                      const chave = `${m.nome}_${idxBloco}`;
-                      const feito = !!configPlan.blocosConcluidos?.[chave];
-                      return (
-                        <button
-                          key={idxBloco}
-                          onClick={() => toggleBlocoCiclo(m.nome, idxBloco)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-black border transition flex items-center gap-1.5 ${
-                            feito
-                              ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm'
-                              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-500'
-                          }`}
-                        >
-                          <i className={`fa-solid ${feito ? 'fa-check' : 'fa-clock'}`}></i>
-                          {duracaoBlocoMin}m
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
