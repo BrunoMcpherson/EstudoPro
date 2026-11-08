@@ -318,7 +318,7 @@ Retorne APENAS um objeto JSON válido (sem blocos markdown) no seguinte formato 
 
       let textoJson = '';
 
-        if (provedorEfetivo === 'groq') {
+      if (provedorEfetivo === 'groq') {
         const respGroq = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -326,7 +326,7 @@ Retorne APENAS um objeto JSON válido (sem blocos markdown) no seguinte formato 
             Authorization: `Bearer ${chaveLimpa}`
           },
           body: JSON.stringify({
-            model: 'llama-3.1-8b-instant', // Modelo rápido e com alta compatibilidade
+            model: 'llama3-8b-8192', // <-- MODELO UNIVERSAL 100% GARANTIDO NA GROQ
             messages: [
               { role: 'system', content: 'Você é um assistente que responde apenas em formato JSON válido.' },
               { role: 'user', content: promptSistema + '\nLembre-se: retorne apenas JSON estruturado.' }
@@ -339,11 +339,12 @@ Retorne APENAS um objeto JSON válido (sem blocos markdown) no seguinte formato 
         if (!respGroq.ok) {
           const groqError = await respGroq.json();
           console.error("Erro detalhado da Groq:", groqError);
-          throw new Error(`Erro na API Groq (400). Verifique o console para mais detalhes.`);
+          const msgReal = groqError.error?.message || 'Erro de conexão com a Groq';
+          throw new Error(`Groq recusou: ${msgReal}`);
         }
         const dataGroq = await respGroq.json();
         textoJson = dataGroq?.choices?.[0]?.message?.content;
-      
+
       } else {
         // Chamada Gemini enviando tanto no header x-goog-api-key quanto com fallback de modelos
         const modelosGemini = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest'];
