@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 
 import Dashboard from './Dashboard';
+import Planejamento from './Planejamento';
 import Calendario from './Calendario';
 import Pdfs from './Pdfs';
 import Revisoes from './Revisoes';
@@ -24,11 +25,12 @@ export default function Layout() {
 
   const menuItems = [
     { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+    { id: 'planejamento', icon: 'fa-compass-drafting', label: 'Planejamento' },
+    { id: 'edital', icon: 'fa-list-check', label: 'Meu Edital' },
+    { id: 'desempenho', icon: 'fa-chart-line', label: 'Desempenho' },
+    { id: 'revisoes', icon: 'fa-clock-rotate-left', label: 'Revisões' },
     { id: 'calendario', icon: 'fa-calendar-days', label: 'Histórico' },
     { id: 'pdfs', icon: 'fa-file-pdf', label: 'Meus PDFs' },
-    { id: 'revisoes', icon: 'fa-clock-rotate-left', label: 'Revisões' },
-    { id: 'desempenho', icon: 'fa-chart-line', label: 'Desempenho' },
-    { id: 'edital', icon: 'fa-list-check', label: 'Meu Edital' },
     { id: 'resumos', icon: 'fa-book-bookmark', label: 'Resumos' },
     { id: 'flashcards', icon: 'fa-clone', label: 'Flashcards' },
   ];
@@ -43,6 +45,7 @@ export default function Layout() {
   const renderizarTela = () => {
     switch (abaAtiva) {
       case 'dashboard': return <Dashboard />;
+      case 'planejamento': return <Planejamento />;
       case 'calendario': return <Calendario />;
       case 'pdfs': return <Pdfs />;
       case 'revisoes': return <Revisoes />;
@@ -59,7 +62,6 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen w-full bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans overflow-hidden transition-colors duration-300">
-      
       <aside className={`bg-white dark:bg-gray-800 shadow-xl border-r dark:border-gray-700 flex flex-col transition-all duration-300 ${sidebarAberta ? 'w-64' : 'w-16'}`}>
         <div className="h-16 flex items-center justify-center border-b dark:border-gray-700 px-4">
           <i className="fa-solid fa-graduation-cap text-indigo-600 dark:text-indigo-400 text-2xl"></i>
@@ -83,8 +85,7 @@ export default function Layout() {
               <i className="fa-solid fa-bars text-xl"></i>
             </button>
             
-            {/* NOVO SELETOR DE PROVAS (WORKSPACE) */}
-            <div className="hidden sm:flex items-center gap-2 bg-indigo-50 dark:bg-gray-700 rounded-lg p-1 border dark:border-gray-600">
+            <div className="flex items-center gap-2 bg-indigo-50 dark:bg-gray-700 rounded-lg p-1 border dark:border-gray-600">
               <i className="fa-solid fa-layer-group text-indigo-500 ml-2"></i>
               <select 
                 value={projetoAtivoId || ''} 
@@ -105,7 +106,7 @@ export default function Layout() {
             <button onClick={() => salvarDados({...dadosEstudo, darkMode: !dadosEstudo.darkMode})} className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-yellow-400 w-10 h-10 rounded-full font-bold transition hover:bg-gray-200 dark:hover:bg-gray-600" title="Alternar Tema">
               <i className={`fa-solid ${dadosEstudo?.darkMode ? 'fa-sun' : 'fa-moon'}`}></i>
             </button>
-            <div className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm flex items-center gap-2 hidden md:flex">
+            <div className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm hidden md:flex items-center gap-2">
               <i className="fa-solid fa-cloud-check text-green-500"></i> 
               <span>{currentUser?.email}</span>
             </div>
