@@ -239,8 +239,8 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
   ]
 }`;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${chaveLimpa}`,
+        const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${chaveLimpa}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
